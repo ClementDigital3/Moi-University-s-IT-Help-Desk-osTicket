@@ -1,0 +1,3 @@
+Task,Model,Accuracy,Precision (macro),Recall (macro),F1 (macro),F1 (weighted),Arm,Head,Feature set,Dimensions,Block weight,CV F1 (macro),Best params,Fit time (s),Correct-routing rate
+Ticket classification,B: k-NN (cosine) + context,0.8831,0.8878,0.8728,0.8793,0.8828,B (task-specific),k-NN (cosine),+ text-shape context,411,0.1,0.8879,"{""n_neighbors"": 15}",1.8,
+Resolver routing,B: Linear SVM + context,0.7294,0.6702,0.722,0.6888,0.6985,B (task-specific),Linear SVM,+ predicted-category context,418,0.1,0.7098,"{""C"": 1.0}",13.2,0.7294

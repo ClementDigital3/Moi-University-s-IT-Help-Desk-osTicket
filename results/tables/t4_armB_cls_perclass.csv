@@ -1,0 +1,8 @@
+Class,Precision,Recall,F1,Support
+Account & Access Management,0.863,0.924,0.892,197
+Network & Connectivity,0.898,0.909,0.904,165
+Hardware & Equipment,0.888,0.901,0.894,141
+Learning Management System,0.874,0.894,0.884,132
+Student Information System,0.869,0.828,0.848,128
+Application Support,0.944,0.81,0.872,84
+Email & Collaboration,0.878,0.844,0.861,77

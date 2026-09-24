@@ -1,0 +1,181 @@
+"""
+ARM A -- task-specific ("specialist") models.
+
+One independently trained and tuned model per task, exactly as listed in
+Table 3.2 of the thesis:
+
+    Baseline / classical : Multinomial Naive Bayes, Logistic Regression, Linear SVM
+    Ensemble             : Random Forest, XGBoost
+    Representation       : TF-IDF (the conventional baseline of Sec. 3.11)
+
+Tasks handled independently:
+    A1  ticket classification  -> Category
+    A2  resolver routing       -> Assigned Team
+    A3  resolution recommendation -> TF-IDF cosine retrieval over resolved tickets
+
+Hyperparameters are selected by stratified 5-fold cross-validation on the
+training partition only (Sec. 3.15); the held-out partition is touched once.
+Per-model test predictions are persisted so that compare.py can run the paired
+McNemar tests against Arm B on identical rows.
+"""
+import os, json, time
+import numpy as np
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import LinearSVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV, StratifiedKFold
+from sklearn.metrics.pairwise import cosine_similarity
+from xgboost import XGBClassifier
+
+from common import (load_splits, clf_metrics, per_class_report, conf_matrix_df,
+                    rank_metrics, save_table, TABLES, SEED, ROOT)
+
+PRED = os.path.join(ROOT, "results", "predictions")
+CV = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)
+
+
+def vectorizer():
+    # Word unigrams+bigrams. min_df=2 drops hapax typos; sublinear tf damps the
+    # effect of users repeating a word for emphasis.
+    return TfidfVectorizer(ngram_range=(1, 2), min_df=2, max_df=0.85,
+                           sublinear_tf=True, max_features=30000,
+                           strip_accents="unicode")
+
+
+def candidates(n_classes):
+    """Table 3.2 candidates with the small search grid used for tuning."""
+    return {
+        "Multinomial Naive Bayes": (
+            MultinomialNB(), {"alpha": [0.05, 0.1, 0.3, 1.0]}),
+        "Logistic Regression": (
+            LogisticRegression(max_iter=2000, class_weight="balanced",
+                               random_state=SEED),
+            {"C": [1.0, 3.0, 10.0]}),
+        "Linear SVM": (
+            LinearSVC(class_weight="balanced", random_state=SEED, max_iter=5000),
+            {"C": [0.3, 1.0, 3.0]}),
+        "Random Forest": (
+            RandomForestClassifier(n_estimators=300, class_weight="balanced_subsample",
+                                   random_state=SEED, n_jobs=-1),
+            {"min_samples_leaf": [1, 2]}),
+        # n_estimators trimmed to 150: a single 400-round fit cost 33 s on this
+        # machine, which put the tuned grid beyond a practical runtime. The
+        # depth grid is retained so the tuning step remains meaningful.
+        "XGBoost": (
+            XGBClassifier(n_estimators=150, learning_rate=0.25, max_depth=6,
+                          subsample=0.9, colsample_bytree=0.7, tree_method="hist",
+                          objective="multi:softmax", num_class=n_classes,
+                          random_state=SEED, n_jobs=4, verbosity=0),
+            {"max_depth": [6, 9]}),
+    }
+
+
+def run_task(task_name, ycol, tr, te, rows, preds):
+    print(f"\n{'='*70}\nARM A -- {task_name}  (label: {ycol})\n{'='*70}")
+    vec = vectorizer()
+    Xtr = vec.fit_transform(tr["text"])
+    Xte = vec.transform(te["text"])
+    ytr, yte = tr[ycol].values, te[ycol].values
+    labels = sorted(pd.unique(np.concatenate([ytr, yte])))
+    print(f"[{time.strftime('%H:%M:%S')}] features={Xtr.shape[1]}  train={Xtr.shape[0]}  test={Xte.shape[0]}  classes={len(labels)}")
+
+    code = {l: i for i, l in enumerate(labels)}
+    ytr_i = np.array([code[v] for v in ytr])
+
+    for name, (est, grid) in candidates(len(labels)).items():
+        t0 = time.time()
+        needs_int = name == "XGBoost"
+        y_fit = ytr_i if needs_int else ytr
+        # XGBoost already uses all cores internally; running the search in
+        # parallel on top of that oversubscribes the 4 available cores.
+        gs = GridSearchCV(est, grid, scoring="f1_macro", cv=CV,
+                          n_jobs=1 if needs_int else -1, refit=True)
+        gs.fit(Xtr, y_fit)
+        pred = gs.predict(Xte)
+        if needs_int:
+            inv = {i: l for l, i in code.items()}
+            pred = np.array([inv[int(p)] for p in pred])
+        fit_s = time.time() - t0
+
+        row = clf_metrics(yte, pred, task_name, name)
+        row["CV F1 (macro)"] = round(float(gs.best_score_), 4)
+        row["Best params"] = json.dumps(gs.best_params_)
+        row["Fit time (s)"] = round(fit_s, 1)
+        row["Arm"] = "A (specialist)"
+        rows.append(row)
+        preds[f"A|{task_name}|{name}"] = pred
+        print(f"  {name:26s} acc={row['Accuracy']:.4f}  macroF1={row['F1 (macro)']:.4f}  ({fit_s:.1f}s)",
+              flush=True)
+        # checkpoint: an interrupted run keeps everything finished so far
+        pd.DataFrame(rows).to_csv(os.path.join(TABLES, "_armA_partial.csv"), index=False)
+        np.savez(os.path.join(PRED, "arm_a.npz"),
+                 **{k: np.asarray(v, dtype=object) for k, v in preds.items()})
+
+    # best specialist -> per-class + confusion matrix for Chapter 4
+    best = max([r for r in rows if r["Task"] == task_name and r["Arm"].startswith("A")],
+               key=lambda r: r["F1 (macro)"])
+    bp = preds[f"A|{task_name}|{best['Model']}"]
+    tag = "cls" if "classification" in task_name.lower() else "route"
+    per_class_report(yte, bp, labels).to_csv(
+        os.path.join(TABLES, f"t4_armA_{tag}_perclass.csv"), index=False)
+    conf_matrix_df(yte, bp, labels).to_csv(
+        os.path.join(TABLES, f"t4_armA_{tag}_confusion.csv"))
+    print(f"  -> best specialist: {best['Model']} (macro F1 {best['F1 (macro)']:.4f})")
+    return best
+
+
+def run_recommendation(tr, te, rows, preds):
+    """
+    A3 -- the conventional (non-contextual) retrieval baseline.
+
+    Corpus  : training tickets that carry a resolution note.
+    Query   : each held-out ticket.
+    Relevant: shares the query's latent problem id.
+    """
+    print(f"\n{'='*70}\nARM A -- Resolution recommendation (TF-IDF cosine retrieval)\n{'='*70}")
+    corpus = tr[tr["res_clean"].str.strip() != ""].copy().reset_index(drop=True)
+    print(f"retrieval corpus={len(corpus)}  queries={len(te)}")
+
+    vec = vectorizer()
+    C = vec.fit_transform(corpus["text"])
+    Q = vec.transform(te["text"])
+    sim = cosine_similarity(Q, C)
+    top = np.argsort(-sim, axis=1)[:, :10]
+
+    cp = corpus["latent_problem_id"].values
+    ranked = [[cp[j] for j in row] for row in top]
+    m = rank_metrics(ranked, te["latent_problem_id"].values)
+    m.update({"Task": "Resolution recommendation", "Model": "TF-IDF cosine retrieval",
+              "Arm": "A (specialist)"})
+    rows.append(m)
+    preds["A|rec|hit1"] = np.array([1 if r[0] == t else 0 for r, t in
+                                    zip(ranked, te["latent_problem_id"].values)])
+    print(f"  Top-1={m['Top-1']:.4f}  Top-3={m['Top-3']:.4f}  Top-5={m['Top-5']:.4f}  MRR={m['MRR']:.4f}")
+    return m
+
+
+def main():
+    os.makedirs(PRED, exist_ok=True)
+    tr, te, meta = load_splits()
+    rows, preds = [], {}
+
+    run_task("Ticket classification", "Category", tr, te, rows, preds)
+    run_task("Resolver routing", "Assigned Team", tr, te, rows, preds)
+    rec = run_recommendation(tr, te, rows, preds)
+
+    clf_rows = [r for r in rows if r["Task"] != "Resolution recommendation"]
+    save_table(pd.DataFrame(clf_rows), "t43_armA_classification_routing.csv",
+               "Arm A -- classification & routing (Table 4.3)")
+    save_table(pd.DataFrame([rec]), "t45_armA_recommendation.csv",
+               "Arm A -- recommendation (Table 4.5)")
+
+    np.savez(os.path.join(PRED, "arm_a.npz"),
+             **{k: np.asarray(v, dtype=object) for k, v in preds.items()})
+    print(f"\npredictions saved -> {os.path.join(PRED,'arm_a.npz')}")
+
+
+if __name__ == "__main__":
+    main()

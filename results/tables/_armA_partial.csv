@@ -1,0 +1,5 @@
+Task,Model,Accuracy,Precision (macro),Recall (macro),F1 (macro),F1 (weighted),CV F1 (macro),Best params,Fit time (s),Arm
+Ticket classification,Multinomial Naive Bayes,0.9015,0.9055,0.89,0.8966,0.901,0.9004,"{""alpha"": 0.1}",3.2,A (specialist)
+Ticket classification,Logistic Regression,0.8929,0.8878,0.8838,0.8852,0.8926,0.8947,"{""C"": 1.0}",6.5,A (specialist)
+Ticket classification,Linear SVM,0.9048,0.903,0.8931,0.8972,0.9043,0.8965,"{""C"": 0.3}",1.3,A (specialist)
+Ticket classification,Random Forest,0.8939,0.8948,0.8843,0.8887,0.8934,0.8946,"{""min_samples_leaf"": 2}",30.0,A (specialist)

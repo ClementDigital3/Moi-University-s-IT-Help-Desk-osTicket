@@ -1,0 +1,2 @@
+Top-1,Top-3,Top-5,Top-10,Precision@1,Precision@3,Precision@5,Precision@10,Recall@1,Recall@3,Recall@5,Recall@10,MRR,Task,Model,Variant,Arm
+0.9102,0.9242,0.9286,0.9318,0.9102,0.9051,0.9019,0.8977,0.9102,0.9051,0.9019,0.8977,0.9183,Resolution recommendation,"Hybrid semantic+lexical, category-filtered",Hybrid + category context,B (task-specific)

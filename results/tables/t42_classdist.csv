@@ -1,0 +1,17 @@
+Label type,Class,n,% of corpus
+Category,Account & Access Management,984.0,21.3
+Category,Network & Connectivity,826.0,17.9
+Category,Hardware & Equipment,702.0,15.2
+Category,Learning Management System,662.0,14.3
+Category,Student Information System,640.0,13.9
+Category,Application Support,419.0,9.1
+Category,Email & Collaboration,384.0,8.3
+Category,-- imbalance ratio --,2.56,
+Resolver team,Systems & Accounts Team,1033.0,22.4
+Resolver team,Network Team,750.0,16.2
+Resolver team,Hardware & Maintenance Team,675.0,14.6
+Resolver team,eLearning Support Unit,583.0,12.6
+Resolver team,Help Desk (Tier 1),563.0,12.2
+Resolver team,Applications Support Team,512.0,11.1
+Resolver team,MIS / SIS Support Team,501.0,10.9
+Resolver team,-- imbalance ratio --,2.06,

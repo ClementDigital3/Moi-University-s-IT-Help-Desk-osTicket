@@ -1,0 +1,6 @@
+Task,Head,CV F1 (macro),Best params,Tune time (s)
+Resolver routing,Logistic Regression,0.7001,"{""C"": 1.0}",7.0
+Resolver routing,Linear SVM,0.7006,"{""C"": 1.0}",13.7
+Resolver routing,Random Forest,0.6728,"{""min_samples_leaf"": 2}",86.7
+Resolver routing,XGBoost,0.6853,fixed (see heads() docstring),979.0
+Resolver routing,k-NN (cosine),0.6914,"{""n_neighbors"": 10}",24.5

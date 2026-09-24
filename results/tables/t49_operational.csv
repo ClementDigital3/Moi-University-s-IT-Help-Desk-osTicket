@@ -1,0 +1,9 @@
+Dimension,Arm A (end-to-end),Arm B (task-specific)
+Models fitted for deployment,"5 base classifiers × 2 tasks, combined by vote",1 encoder + 1 head per label task + 1 index
+Representations maintained,1 shared TF-IDF vocabulary (+1 for retrieval),1 shared sentence-embedding space
+Inference per ticket,1 vectorise → 10 model calls → 2 votes → 1 search,1 encode → B1 → B2 (consumes B1) → 1 search
+Training cost (s),432.1 (supervised fits),134.8 encode + head fits
+Adding a new category or resolver,refit all 5 base classifiers for that task,refit one head; the encoder is unchanged
+Cold-start on unseen vocabulary,out-of-vocabulary terms are simply dropped,encoder generalises from pretraining
+Explanation offered to the resolver,vote margin across base classifiers,the neighbouring tickets and their resolutions
+Failure coupling,tasks independent; a bad category does not affect routing,cascaded: routing inherits B1 error (OOF agreement 0.890)

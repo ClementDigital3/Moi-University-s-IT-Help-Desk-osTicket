@@ -1,0 +1,27 @@
+{
+  "n_clean": 4617,
+  "n_train": 3693,
+  "n_test": 924,
+  "seed": 42,
+  "test_size": 0.2,
+  "categories": [
+    "Account & Access Management",
+    "Application Support",
+    "Email & Collaboration",
+    "Hardware & Equipment",
+    "Learning Management System",
+    "Network & Connectivity",
+    "Student Information System"
+  ],
+  "teams": [
+    "Applications Support Team",
+    "Hardware & Maintenance Team",
+    "Help Desk (Tier 1)",
+    "MIS / SIS Support Team",
+    "Network Team",
+    "Systems & Accounts Team",
+    "eLearning Support Unit"
+  ],
+  "mean_tokens": 24.7,
+  "median_tokens": 25
+}

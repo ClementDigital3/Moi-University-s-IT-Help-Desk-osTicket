@@ -1,0 +1,8 @@
+Class,Precision,Recall,F1,Support
+Systems & Accounts Team,0.719,0.774,0.746,195
+Network Team,0.81,0.877,0.842,155
+Hardware & Maintenance Team,0.775,0.775,0.775,138
+eLearning Support Unit,0.746,0.862,0.8,123
+Help Desk (Tier 1),0.189,0.059,0.09,118
+MIS / SIS Support Team,0.766,0.931,0.841,102
+Applications Support Team,0.686,0.774,0.727,93

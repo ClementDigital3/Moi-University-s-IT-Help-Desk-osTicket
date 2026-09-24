@@ -1,0 +1,216 @@
+"""
+ARM B -- the unified model.
+
+A SINGLE shared representation serves all three help desk decisions. One encode
+pass produces one embedding; one nearest-neighbour search over the historical
+corpus is then read three ways:
+
+        ticket text
+             |
+      [ shared encoder ]            <- one model
+             |
+     one neighbour search           <- one index
+       /     |      \
+  category  team   their resolution notes
+   (vote)  (vote)      (ranked)
+
+This is the integrated treatment the thesis argues for in Sec. 2.11 (the
+"integration gap"): classification, routing and recommendation are not three
+systems but three readings of one semantic neighbourhood.
+
+Encoder, per Table 3.2 ("contextual / semantic benchmark ... where feasible"):
+    sbert : sentence-transformers MiniLM sentence encoder  (preferred)
+    lsa   : TF-IDF -> truncated SVD dense latent-semantic vectors (fallback,
+            used where the transformer cannot be provisioned -- the allowance
+            made in Sec. 1.9 and Sec. 3.11)
+
+Whichever encoder is used, the unified architecture under test is identical;
+only the representation changes. The encoder actually used is recorded in the
+results so Chapter 4 reports it honestly.
+"""
+import os, sys, json, time, argparse
+import numpy as np
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.decomposition import TruncatedSVD
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import Normalizer
+from sklearn.model_selection import StratifiedKFold
+
+from common import (load_splits, clf_metrics, per_class_report, conf_matrix_df,
+                    rank_metrics, save_table, TABLES, SEED, ROOT)
+
+PRED = os.path.join(ROOT, "results", "predictions")
+K_GRID = [5, 10, 15, 25, 40]
+
+
+# --------------------------------------------------------------------------
+# Encoders
+# --------------------------------------------------------------------------
+def encode_sbert(train_texts, test_texts):
+    from sentence_transformers import SentenceTransformer
+    name = "sentence-transformers/all-MiniLM-L6-v2"
+    m = SentenceTransformer(name)
+    E_tr = m.encode(list(train_texts), batch_size=64, show_progress_bar=False,
+                    normalize_embeddings=True)
+    E_te = m.encode(list(test_texts), batch_size=64, show_progress_bar=False,
+                    normalize_embeddings=True)
+    return np.asarray(E_tr), np.asarray(E_te), name, int(E_tr.shape[1])
+
+
+def encode_lsa(train_texts, test_texts, dim=300):
+    vec = TfidfVectorizer(ngram_range=(1, 2), min_df=2, max_df=0.85,
+                          sublinear_tf=True, max_features=30000,
+                          strip_accents="unicode")
+    Xtr = vec.fit_transform(train_texts)
+    Xte = vec.transform(test_texts)
+    dim = min(dim, Xtr.shape[1] - 1)
+    pipe = make_pipeline(TruncatedSVD(n_components=dim, random_state=SEED),
+                         Normalizer(copy=False))
+    E_tr = pipe.fit_transform(Xtr)
+    E_te = pipe.transform(Xte)
+    ev = float(pipe.named_steps["truncatedsvd"].explained_variance_ratio_.sum())
+    return E_tr, E_te, f"TF-IDF + truncated SVD (LSA, {dim}d, {ev:.1%} var)", dim
+
+
+def get_encoder(pref):
+    if pref in ("sbert", "auto"):
+        try:
+            import sentence_transformers  # noqa: F401
+            return "sbert"
+        except Exception as e:
+            if pref == "sbert":
+                raise
+            print(f"[encoder] sentence-transformers unavailable ({type(e).__name__}); "
+                  f"falling back to LSA as allowed by Sec. 3.11")
+    return "lsa"
+
+
+# --------------------------------------------------------------------------
+# The unified head: one neighbourhood, read three ways
+# --------------------------------------------------------------------------
+def neighbours(E_query, E_corpus, k):
+    """Cosine similarity on normalised vectors; returns (idx, sim) top-k."""
+    S = E_query @ E_corpus.T
+    idx = np.argpartition(-S, kth=min(k, S.shape[1] - 1), axis=1)[:, :k]
+    rows = np.arange(S.shape[0])[:, None]
+    order = np.argsort(-S[rows, idx], axis=1)
+    idx = idx[rows, order]
+    return idx, S[rows, idx]
+
+
+def vote(idx, sim, labels):
+    """Similarity-weighted neighbour vote."""
+    out = []
+    for r, s in zip(idx, sim):
+        tally = {}
+        for j, w in zip(r, s):
+            tally[labels[j]] = tally.get(labels[j], 0.0) + max(float(w), 0.0)
+        out.append(max(tally, key=tally.get) if tally else labels[r[0]])
+    return np.array(out)
+
+
+def tune_k(E_tr, tr, ycols):
+    """Pick one k for the whole unified model by 5-fold CV on the training set."""
+    from sklearn.metrics import f1_score
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)
+    y_strat = tr["Category"].values
+    best, best_score = K_GRID[0], -1
+    for k in K_GRID:
+        scores = []
+        for a, b in skf.split(E_tr, y_strat):
+            idx, sim = neighbours(E_tr[b], E_tr[a], k)
+            # the single k must serve BOTH label tasks, so score on their mean
+            f = [f1_score(tr[c].values[b], vote(idx, sim, tr[c].values[a]),
+                          average="macro", zero_division=0) for c in ycols]
+            scores.append(np.mean(f))
+        s = float(np.mean(scores))
+        print(f"  k={k:<3d} mean macro-F1 (category+team) = {s:.4f}")
+        if s > best_score:
+            best, best_score = k, s
+    print(f"  -> selected k={best}")
+    return best
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--encoder", default="auto", choices=["auto", "sbert", "lsa"])
+    args = ap.parse_args()
+
+    os.makedirs(PRED, exist_ok=True)
+    tr, te, meta = load_splits()
+    rows, preds = [], {}
+
+    kind = get_encoder(args.encoder)
+    print(f"\n{'='*70}\nARM B -- unified model (encoder: {kind})\n{'='*70}")
+    t0 = time.time()
+    if kind == "sbert":
+        E_tr, E_te, enc_name, dim = encode_sbert(tr["text"], te["text"])
+    else:
+        E_tr, E_te, enc_name, dim = encode_lsa(tr["text"], te["text"])
+    enc_s = time.time() - t0
+    print(f"encoder: {enc_name}\ndim={dim}  encode time={enc_s:.1f}s")
+
+    print("\ntuning the single shared k (one value must serve both label tasks):")
+    k = tune_k(E_tr, tr, ["Category", "Assigned Team"])
+
+    # ---- ONE encode, ONE search, THREE outputs --------------------------
+    t1 = time.time()
+    idx, sim = neighbours(E_te, E_tr, max(k, 10))
+    search_s = time.time() - t1
+
+    pred_cat = vote(idx[:, :k], sim[:, :k], tr["Category"].values)
+    pred_team = vote(idx[:, :k], sim[:, :k], tr["Assigned Team"].values)
+
+    for task, ycol, pred in (("Ticket classification", "Category", pred_cat),
+                             ("Resolver routing", "Assigned Team", pred_team)):
+        row = clf_metrics(te[ycol].values, pred, task, f"Unified ({kind}) k-NN")
+        row["Arm"] = "B (unified)"
+        row["Encoder"] = enc_name
+        row["k"] = k
+        row["Fit time (s)"] = round(enc_s, 1)
+        rows.append(row)
+        preds[f"B|{task}"] = pred
+        labels = sorted(pd.unique(np.concatenate([tr[ycol].values, te[ycol].values])))
+        tag = "cls" if "classification" in task.lower() else "route"
+        per_class_report(te[ycol].values, pred, labels).to_csv(
+            os.path.join(TABLES, f"t4_armB_{tag}_perclass.csv"), index=False)
+        conf_matrix_df(te[ycol].values, pred, labels).to_csv(
+            os.path.join(TABLES, f"t4_armB_{tag}_confusion.csv"))
+        print(f"  {task:24s} acc={row['Accuracy']:.4f}  macroF1={row['F1 (macro)']:.4f}")
+
+    # Recommendation reads the SAME neighbourhood -- restricted to neighbours
+    # that actually carry a resolution note.
+    has_res = tr["res_clean"].str.strip().values != ""
+    pid_tr = tr["latent_problem_id"].values
+    ranked = []
+    for r in idx:
+        keep = [j for j in r if has_res[j]][:10]
+        ranked.append([pid_tr[j] for j in keep])
+    m = rank_metrics(ranked, te["latent_problem_id"].values)
+    m.update({"Task": "Resolution recommendation",
+              "Model": f"Unified ({kind}) shared-neighbourhood retrieval",
+              "Arm": "B (unified)", "Encoder": enc_name})
+    rows.append(m)
+    preds["B|rec|hit1"] = np.array([1 if r and r[0] == t else 0 for r, t in
+                                    zip(ranked, te["latent_problem_id"].values)])
+    print(f"  {'Resolution recommendation':24s} Top-1={m['Top-1']:.4f}  "
+          f"Top-5={m['Top-5']:.4f}  MRR={m['MRR']:.4f}")
+
+    clf_rows = [r for r in rows if r["Task"] != "Resolution recommendation"]
+    save_table(pd.DataFrame(clf_rows), "t44_armB_classification_routing.csv",
+               "Arm B -- classification & routing (Table 4.4)")
+    save_table(pd.DataFrame([m]), "t46_armB_recommendation.csv",
+               "Arm B -- recommendation (Table 4.6)")
+
+    np.savez(os.path.join(PRED, "arm_b.npz"),
+             **{k2: np.asarray(v, dtype=object) for k2, v in preds.items()})
+    with open(os.path.join(PRED, "arm_b_meta.json"), "w") as f:
+        json.dump({"encoder_kind": kind, "encoder": enc_name, "dim": dim, "k": k,
+                   "encode_seconds": round(enc_s, 2),
+                   "search_seconds": round(search_s, 3)}, f, indent=2)
+    print(f"\nunified cost: 1 encode ({enc_s:.1f}s) + 1 search ({search_s:.3f}s) -> 3 outputs")
+
+
+if __name__ == "__main__":
+    main()

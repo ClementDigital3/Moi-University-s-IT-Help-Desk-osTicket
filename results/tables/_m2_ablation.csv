@@ -1,0 +1,6 @@
+Task,Feature set,Blocks,Dimensions,Block weight,CV F1 (macro),Δ vs previous
+Resolver routing,Semantic text only,text,384,—,0.7006,
+Resolver routing,+ department metadata,text + dept,399,0.1,0.7031,0.0025
+Resolver routing,+ temporal context,text + dept + time,405,0.3,0.6999,-0.0032
+Resolver routing,+ text-shape context,text + dept + time + shape,411,0.3,0.7025,0.0026
+Resolver routing,+ predicted-category context,text + dept + time + shape + cat,418,0.1,0.7098,0.0073

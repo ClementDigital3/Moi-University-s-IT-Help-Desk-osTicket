@@ -1,0 +1,26 @@
+# Environment: re-creatable, and huge. libtorch_cpu.so alone is 418 MB.
+.venv/
+__pycache__/
+*.py[cod]
+
+# Vendored wheels: 371 MB, and torch alone is 188 MB — over GitHub's 100 MB
+# hard limit. The README documents how to re-fetch them.
+wheels/
+
+# Caches and fitted binaries. All regenerable from the pipeline:
+#   results/cache      sentence embeddings + fitted branch probabilities
+#   results/deploy     the 34 MB serving bundle  -> models.end_to_end.export
+#   results/predictions paired prediction arrays -> the model runs
+#   results/artifacts  inter-model handoff       -> the model runs
+results/cache/
+results/deploy/
+results/predictions/
+results/artifacts/
+
+# Run logs
+*.log
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/

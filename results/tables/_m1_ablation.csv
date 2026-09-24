@@ -1,0 +1,5 @@
+Task,Feature set,Blocks,Dimensions,Block weight,CV F1 (macro),Δ vs previous
+Ticket classification,Semantic text only,text,384,—,0.8804,
+Ticket classification,+ department metadata,text + dept,399,0.1,0.8807,0.0003
+Ticket classification,+ temporal context,text + dept + time,405,0.1,0.8808,0.0002
+Ticket classification,+ text-shape context,text + dept + time + shape,411,0.1,0.8829,0.0021

@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter Four — Evidence Dashboard</title>
+<style>
+  :root{
+    color-scheme: light;
+    --plane:#f9f9f7; --surface-1:#fcfcfb;
+    --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#898781;
+    --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,0.10);
+    --series-1:#2a78d6;   /* Arm A */
+    --series-2:#eb6834;   /* Arm B */
+    --deemph:#c3c2b7;
+    --seq-100:#cde2fb; --seq-250:#86b6ef; --seq-400:#3987e5;
+    --seq-550:#1c5cab; --seq-700:#0d366b;
+    --good:#0ca30c; --critical:#d03b3b; --warning:#fab219;
+    --success-ink:#006300;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:where(:not([data-theme="light"])){
+      color-scheme: dark;
+      --plane:#0d0d0d; --surface-1:#1a1a19;
+      --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#898781;
+      --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+      --series-1:#3987e5; --series-2:#d95926; --deemph:#383835;
+      --seq-100:#0d366b; --seq-250:#184f95; --seq-400:#2a78d6;
+      --seq-550:#5598e7; --seq-700:#9ec5f4;
+      --success-ink:#0ca30c;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --plane:#0d0d0d; --surface-1:#1a1a19;
+    --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,0.10);
+    --series-1:#3987e5; --series-2:#d95926; --deemph:#383835;
+    --seq-100:#0d366b; --seq-250:#184f95; --seq-400:#2a78d6;
+    --seq-550:#5598e7; --seq-700:#9ec5f4;
+    --success-ink:#0ca30c;
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--plane);color:var(--text-primary);
+    font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+  .wrap{max-width:1180px;margin:0 auto;padding:26px 16px 80px}
+
+  header.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+  h1{margin:0;font-size:26px;letter-spacing:-.02em}
+  .lede{color:var(--text-secondary);font-size:14.5px;margin-top:6px;max-width:74ch}
+  .themebtn{font:inherit;font-size:13px;cursor:pointer;background:var(--surface-1);
+    color:var(--text-secondary);border:1px solid var(--border);border-radius:8px;padding:7px 12px}
+
+  .caveat{margin:18px 0 26px;background:var(--surface-1);border:1px solid var(--border);
+    border-left:3px solid var(--warning);border-radius:10px;padding:13px 16px;
+    font-size:13.4px;color:var(--text-secondary);line-height:1.6}
+  .caveat b{color:var(--text-primary)}
+
+  section{margin:34px 0}
+  h2{font-size:19px;margin:0 0 4px;letter-spacing:-.015em}
+  h2 .obj{color:var(--text-muted);font-weight:500;font-size:14px;margin-left:8px}
+  .note{color:var(--text-secondary);font-size:13.8px;margin:0 0 16px;max-width:82ch}
+
+  .card{background:var(--surface-1);border:1px solid var(--border);border-radius:12px;padding:18px}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px}
+  .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  .kpi{background:var(--surface-1);border:1px solid var(--border);border-radius:10px;padding:13px 15px}
+  .kpi .k{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);font-weight:650}
+  .kpi .v{font-size:27px;font-weight:660;margin-top:3px;letter-spacing:-.02em}
+  .kpi .s{font-size:12.5px;color:var(--text-secondary);margin-top:1px}
+
+  .ptitle{font-size:14px;font-weight:660;margin:0 0 1px}
+  .psub{font-size:12.4px;color:var(--text-muted);margin:0 0 12px}
+
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 10px;font-size:12.6px;color:var(--text-secondary)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .swline{width:16px;height:3px;border-radius:2px;display:inline-block}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:650;
+    border-radius:999px;padding:2.5px 9px;border:1px solid var(--border)}
+  .badge.sig{color:var(--success-ink)}
+  .badge.ns{color:var(--text-secondary)}
+
+  table{width:100%;border-collapse:collapse;font-size:13.3px}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--text-muted);font-weight:700;padding:0 9px 7px;border-bottom:1px solid var(--grid)}
+  td{padding:8px 9px;border-bottom:1px solid var(--grid);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .win{font-weight:660}
+
+  details{margin-top:12px}
+  summary{cursor:pointer;font-size:12.6px;color:var(--text-secondary);
+    list-style:none;display:inline-flex;align-items:center;gap:5px;
+    border:1px solid var(--border);border-radius:7px;padding:4px 10px;background:var(--plane)}
+  summary::-webkit-details-marker{display:none}
+  summary:hover{color:var(--text-primary)}
+  details[open] summary{margin-bottom:9px}
+
+  svg{display:block;overflow:visible;width:100%;height:auto;margin:0 auto}
+  .tick{font-size:10.5px;fill:var(--text-muted)}
+  .vlabel{font-size:11.5px;fill:var(--text-secondary);font-variant-numeric:tabular-nums}
+  .clabel{font-size:11.5px;fill:var(--text-secondary)}
+
+  #tip{position:fixed;pointer-events:none;opacity:0;transition:opacity .09s;
+    background:var(--text-primary);color:var(--surface-1);font-size:12.3px;line-height:1.45;
+    padding:7px 10px;border-radius:7px;max-width:270px;z-index:50;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+  #tip b{font-weight:660}
+
+
+  .nav{display:inline-flex;gap:3px;background:var(--surface-1);border:1px solid var(--border);
+    border-radius:9px;padding:3px;margin-bottom:16px}
+  .nav a{font-size:13.2px;font-weight:600;text-decoration:none;color:var(--text-secondary);
+    padding:6px 13px;border-radius:7px;line-height:1.3}
+  .nav a:hover{color:var(--surface-1);background:var(--plane)}
+  .nav a[aria-current="page"]{background:var(--text-primary);color:var(--surface-1)}
+  .nav{display:none}
+  .nav.on{display:inline-flex}
+
+  footer{margin-top:46px;padding-top:18px;border-top:1px solid var(--border);
+    color:var(--text-muted);font-size:12.4px;line-height:1.65}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="nav" id="nav" aria-label="Views">
+    <a href="/">Live triage</a>
+    <a href="/dashboard" aria-current="page">Evidence dashboard</a>
+  </nav>
+
+  <header class="top">
+    <div>
+      <h1>Chapter Four — Evidence Dashboard</h1>
+      <div class="lede">
+        A context-aware machine learning model for ICT help desk ticket management:
+        a case study of Moi University. Every figure below is read from the result
+        files produced by the modelling pipeline.
+      </div>
+    </div>
+    <button class="themebtn" id="themebtn" type="button">Dark mode</button>
+  </header>
+
+  <div class="caveat">
+    <b>Data provenance.</b> These results come from a corpus constructed to the field
+    specification of Table&nbsp;3.1 and Appendix&nbsp;II, standing in for the authorised
+    osTicket export pending the data-access approval described in Sections&nbsp;1.10 and
+    3.16. The corpus reproduces the conditions the study is about — symptom vocabulary
+    shared across unrelated categories, disambiguating detail supplied only sometimes —
+    so the <b>comparative and methodological findings are informative</b>. The
+    <b>absolute performance levels are properties of this corpus</b> and are to be
+    re-estimated on institutional data before any operational claim is made.
+  </div>
+
+  <section id="s-kpi"></section>
+  <section id="s-verdict"></section>
+  <section id="s-obj1"></section>
+  <section id="s-obj2"></section>
+  <section id="s-obj3"></section>
+  <section id="s-obj4"></section>
+  <section id="s-confusion"></section>
+  <section id="s-operational"></section>
+  <section id="s-corpus"></section>
+
+  <footer>
+    Generated from <code>results/tables/</code> by <code>analysis/build_dashboard.py</code>.
+    Both arms were trained on the same partition and evaluated on the same held-out
+    partition, so every comparison is paired and McNemar's exact test applies.
+    Model selection and feature ablation used cross-validation on the training
+    partition only; the held-out set was scored once.
+  Built 2026-09-24 22:46.</footer>
+</div>
+
+<div id="tip" role="status" aria-live="polite"></div>
+
+<script>
+const DATA = {"corpus":{"n_clean":4617,"n_train":3693,"n_test":924,"categories":["Account & Access Management","Application Support","Email & Collaboration","Hardware & Equipment","Learning Management System","Network & Connectivity","Student Information System"],"teams":["Applications Support Team","Hardware & Maintenance Team","Help Desk (Tier 1)","MIS / SIS Support Team","Network Team","Systems & Accounts Team","eLearning Support Unit"],"mean_tokens":24.7,"median_tokens":25,"screening":[{"Screening step":"Raw records extracted","Records removed":0,"Records remaining":4896,"Retention %":100.0},{"Screening step":"Test / placeholder tickets removed","Records removed":48,"Records remaining":4848,"Retention %":99.0},{"Screening step":"Exact duplicate submissions removed","Records removed":96,"Records remaining":4752,"Retention %":97.1},{"Screening step":"Records with no usable free text removed","Records removed":7,"Records remaining":4745,"Retention %":96.9},{"Screening step":"Records with missing category label removed","Records removed":52,"Records remaining":4693,"Retention %":95.9},{"Screening step":"Records with no assigned resolver removed","Records removed":76,"Records remaining":4617,"Retention %":94.3}],"category_dist":[{"label":"Account & Access Management","n":984,"pct":21.3},{"label":"Network & Connectivity","n":826,"pct":17.9},{"label":"Hardware & Equipment","n":702,"pct":15.2},{"label":"Learning Management System","n":662,"pct":14.3},{"label":"Student Information System","n":640,"pct":13.9},{"label":"Application Support","n":419,"pct":9.1},{"label":"Email & Collaboration","n":384,"pct":8.3}],"team_dist":[{"label":"Systems & Accounts Team","n":1033,"pct":22.4},{"label":"Network Team","n":750,"pct":16.2},{"label":"Hardware & Maintenance Team","n":675,"pct":14.6},{"label":"eLearning Support Unit","n":583,"pct":12.6},{"label":"Help Desk (Tier 1)","n":563,"pct":12.2},{"label":"Applications Support Team","n":512,"pct":11.1},{"label":"MIS / SIS Support Team","n":501,"pct":10.9}],"category_imbalance":2.56,"team_imbalance":2.06},"encoder":{"name":"sentence-transformers/all-MiniLM-L6-v2","dim":384,"encode_seconds":134.8,"oof_category_agreement":0.8898,"blend_w_semantic":0.5},"decisions":[{"task":"Ticket classification","metric":"Macro F1","a_model":"COMBINED (soft vote)","b_model":"B: k-NN (cosine) + context","a":0.9009,"b":0.8793,"a_secondary":0.9058,"b_secondary":0.8831,"secondary_metric":"Accuracy","delta":-0.0216,"winner":"Arm A","p":0.00032,"significant":true,"b_disagree":27,"c_disagree":6,"baseline":0.2132},{"task":"Resolver routing","metric":"Macro F1","a_model":"COMBINED (majority vote)","b_model":"B: Linear SVM + context","a":0.6958,"b":0.6888,"a_secondary":0.7489,"b_secondary":0.7294,"secondary_metric":"Accuracy","delta":-0.007,"winner":"Arm A","p":0.03558,"significant":true,"b_disagree":42,"c_disagree":24,"baseline":0.211},{"task":"Resolution recommendation","metric":"Mean Reciprocal Rank","a_model":"TF-IDF cosine retrieval","b_model":"Hybrid semantic+lexical, category-filtered","a":0.9036,"b":0.9183,"a_secondary":0.8745,"b_secondary":0.9102,"secondary_metric":"Top-1","delta":0.0147,"winner":"Arm B","p":0.00011,"significant":true,"b_disagree":19,"c_disagree":52,"baseline":null}],"significance":[{"Task":"Ticket classification","Test":"McNemar (exact)","A right / B wrong (b)":27,"A wrong / B right (c)":6,"p-value":0.00032,"Significant at .05":"Yes","Favours":"Arm A (end-to-end)"},{"Task":"Resolver routing","Test":"McNemar (exact)","A right / B wrong (b)":42,"A wrong / B right (c)":24,"p-value":0.03558,"Significant at .05":"Yes","Favours":"Arm A (end-to-end)"},{"Task":"Resolution recommendation (Top-1 hit)","Test":"McNemar (exact)","A right / B wrong (b)":19,"A wrong / B right (c)":52,"p-value":0.00011,"Significant at .05":"Yes","Favours":"Arm B (task-specific)"}],"ablation":[{"Task":"Ticket classification","Feature set":"Semantic text only","Blocks":"text","Dimensions":384,"Block weight":"\u2014","CV F1 (macro)":0.8804,"\u0394 vs previous":null},{"Task":"Ticket classification","Feature set":"+ department metadata","Blocks":"text + dept","Dimensions":399,"Block weight":"0.1","CV F1 (macro)":0.8807,"\u0394 vs previous":0.0003},{"Task":"Ticket classification","Feature set":"+ temporal context","Blocks":"text + dept + time","Dimensions":405,"Block weight":"0.1","CV F1 (macro)":0.8808,"\u0394 vs previous":0.0002},{"Task":"Ticket classification","Feature set":"+ text-shape context","Blocks":"text + dept + time + shape","Dimensions":411,"Block weight":"0.1","CV F1 (macro)":0.8829,"\u0394 vs previous":0.0021},{"Task":"Resolver routing","Feature set":"Semantic text only","Blocks":"text","Dimensions":384,"Block weight":"\u2014","CV F1 (macro)":0.7006,"\u0394 vs previous":null},{"Task":"Resolver routing","Feature set":"+ department metadata","Blocks":"text + dept","Dimensions":399,"Block weight":"0.1","CV F1 (macro)":0.7031,"\u0394 vs previous":0.0025},{"Task":"Resolver routing","Feature set":"+ temporal context","Blocks":"text + dept + time","Dimensions":405,"Block weight":"0.3","CV F1 (macro)":0.6999,"\u0394 vs previous":-0.0032},{"Task":"Resolver routing","Feature set":"+ text-shape context","Blocks":"text + dept + time + shape","Dimensions":411,"Block weight":"0.3","CV F1 (macro)":0.7025,"\u0394 vs previous":0.0026},{"Task":"Resolver routing","Feature set":"+ predicted-category context","Blocks":"text + dept + time + shape + cat","Dimensions":418,"Block weight":"0.1","CV F1 (macro)":0.7098,"\u0394 vs previous":0.0073}],"representation":[{"Task":"Ticket classification","Representation":"Contextual sentence embedding","Head":"k-NN (cosine)","Dimensions":384,"CV F1 (macro)":0.8804},{"Task":"Ticket classification","Representation":"Lexical TF-IDF \u2192 LSA","Head":"k-NN (cosine)","Dimensions":300,"CV F1 (macro)":0.8158},{"Task":"Resolver routing","Representation":"Contextual sentence embedding","Head":"Linear SVM","Dimensions":384,"CV F1 (macro)":0.7006},{"Task":"Resolver routing","Representation":"Lexical TF-IDF \u2192 LSA","Head":"Linear SVM","Dimensions":300,"CV F1 (macro)":0.7028}],"arm_a_models":[{"Task":"Resolver routing","Model":"Multinomial Naive Bayes","Accuracy":0.7522,"F1 (macro)":0.7046,"F1 (weighted)":0.7135,"CV F1 (macro)":0.7076,"Fit time (s)":0.4,"Arm":"A (branch)"},{"Task":"Resolver routing","Model":"Linear SVM","Accuracy":0.7543,"F1 (macro)":0.7038,"F1 (weighted)":0.7149,"CV F1 (macro)":0.7035,"Fit time (s)":3.8,"Arm":"A (branch)"},{"Task":"Resolver routing","Model":"Logistic Regression","Accuracy":0.7197,"F1 (macro)":0.698,"F1 (weighted)":0.7035,"CV F1 (macro)":0.7096,"Fit time (s)":9.1,"Arm":"A (branch)"},{"Task":"Resolver routing","Model":"COMBINED (majority vote)","Accuracy":0.7489,"F1 (macro)":0.6958,"F1 (weighted)":0.707,"CV F1 (macro)":null,"Fit time (s)":0.0,"Arm":"A (combined)"},{"Task":"Resolver routing","Model":"Random Forest","Accuracy":0.7478,"F1 (macro)":0.6909,"F1 (weighted)":0.7025,"CV F1 (macro)":0.6964,"Fit time (s)":30.4,"Arm":"A (branch)"},{"Task":"Resolver routing","Model":"COMBINED (soft vote)","Accuracy":0.7446,"F1 (macro)":0.6902,"F1 (weighted)":0.7016,"CV F1 (macro)":null,"Fit time (s)":0.0,"Arm":"A (combined)"},{"Task":"Resolver routing","Model":"COMBINED (weighted vote)","Accuracy":0.7446,"F1 (macro)":0.6902,"F1 (weighted)":0.7016,"CV F1 (macro)":null,"Fit time (s)":0.0,"Arm":"A (combined)"},{"Task":"Resolver routing","Model":"XGBoost","Accuracy":0.7132,"F1 (macro)":0.675,"F1 (weighted)":0.6854,"CV F1 (macro)":0.6847,"Fit time (s)":170.5,"Arm":"A (branch)"},{"Task":"Ticket classification","Model":"COMBINED (soft vote)","Accuracy":0.9058,"F1 (macro)":0.9009,"F1 (weighted)":0.9053,"CV F1 (macro)":null,"Fit time (s)":0.0,"Arm":"A (combined)"},{"Task":"Ticket classification","Model":"COMBINED (weighted vote)","Accuracy":0.9058,"F1 (macro)":0.9009,"F1 (weighted)":0.9053,"CV F1 (macro)":null,"Fit time (s)":0.0,"Arm":"A (combined)"},{"Task":"Ticket classification","Model":"Linear SVM","Accuracy":0.9048,"F1 (macro)":0.899,"F1 (weighted)":0.9042,"CV F1 (macro)":0.8973,"Fit time (s)":2.7,"Arm":"A (branch)"},{"Task":"Ticket classification","Model":"Multinomial Naive Bayes","Accuracy":0.9015,"F1 (macro)":0.8966,"F1 (weighted)":0.901,"CV F1 (macro)":0.9004,"Fit time (s)":3.8,"Arm":"A (branch)"},{"Task":"Ticket classification","Model":"COMBINED (majority vote)","Accuracy":0.9004,"F1 (macro)":0.8949,"F1 (weighted)":0.9,"CV F1 (macro)":null,"Fit time (s)":0.0,"Arm":"A (combined)"},{"Task":"Ticket classification","Model":"Random Forest","Accuracy":0.8929,"F1 (macro)":0.8885,"F1 (weighted)":0.8923,"CV F1 (macro)":0.8914,"Fit time (s)":18.6,"Arm":"A (branch)"},{"Task":"Ticket classification","Model":"Logistic Regression","Accuracy":0.8929,"F1 (macro)":0.8852,"F1 (weighted)":0.8926,"CV F1 (macro)":0.8947,"Fit time (s)":4.9,"Arm":"A (branch)"},{"Task":"Ticket classification","Model":"XGBoost","Accuracy":0.8755,"F1 (macro)":0.8701,"F1 (weighted)":0.8751,"CV F1 (macro)":0.8814,"Fit time (s)":261.6,"Arm":"A (branch)"}],"arm_b_models":[{"Task":"Ticket classification","Head":"k-NN (cosine)","Feature set":"+ text-shape context","Dimensions":411,"Accuracy":0.8831,"F1 (macro)":0.8793,"CV F1 (macro)":0.8879,"Fit time (s)":1.8},{"Task":"Resolver routing","Head":"Linear SVM","Feature set":"+ predicted-category context","Dimensions":418,"Accuracy":0.7294,"F1 (macro)":0.6888,"CV F1 (macro)":0.7098,"Fit time (s)":13.2}],"arm_b_heads":[{"Task":"Ticket classification","Head":"Logistic Regression","CV F1 (macro)":0.882,"Best params":"{\"C\": 3.0}","Tune time (s)":18.6},{"Task":"Ticket classification","Head":"Linear SVM","CV F1 (macro)":0.8872,"Best params":"{\"C\": 0.3}","Tune time (s)":10.2},{"Task":"Ticket classification","Head":"Random Forest","CV F1 (macro)":0.8715,"Best params":"{\"min_samples_leaf\": 2}","Tune time (s)":66.3},{"Task":"Ticket classification","Head":"XGBoost","CV F1 (macro)":0.8759,"Best params":"fixed (see heads() docstring)","Tune time (s)":292.2},{"Task":"Ticket classification","Head":"k-NN (cosine)","CV F1 (macro)":0.8878,"Best params":"{\"n_neighbors\": 15}","Tune time (s)":28.3},{"Task":"Resolver routing","Head":"Logistic Regression","CV F1 (macro)":0.7001,"Best params":"{\"C\": 1.0}","Tune time (s)":7.0},{"Task":"Resolver routing","Head":"Linear SVM","CV F1 (macro)":0.7006,"Best params":"{\"C\": 1.0}","Tune time (s)":13.7},{"Task":"Resolver routing","Head":"Random Forest","CV F1 (macro)":0.6728,"Best params":"{\"min_samples_leaf\": 2}","Tune time (s)":86.7},{"Task":"Resolver routing","Head":"XGBoost","CV F1 (macro)":0.6853,"Best params":"fixed (see heads() docstring)","Tune time (s)":979.0},{"Task":"Resolver routing","Head":"k-NN (cosine)","CV F1 (macro)":0.6914,"Best params":"{\"n_neighbors\": 10}","Tune time (s)":24.5}],"recommendation_variants":[{"Variant":"Semantic retrieval","Top-1":0.8766,"Top-3":0.9253,"Top-5":0.9459,"Top-10":0.9578,"Precision@5":0.8755,"Recall@5":0.8755,"MRR":0.9051},{"Variant":"Semantic + category context","Top-1":0.8961,"Top-3":0.9123,"Top-5":0.9199,"Top-10":0.9286,"Precision@5":0.8892,"Recall@5":0.8892,"MRR":0.9066},{"Variant":"Semantic + lexical hybrid (w=0.5)","Top-1":0.8972,"Top-3":0.9329,"Top-5":0.9481,"Top-10":0.961,"Precision@5":0.8877,"Recall@5":0.8877,"MRR":0.9175},{"Variant":"Hybrid + category context","Top-1":0.9102,"Top-3":0.9242,"Top-5":0.9286,"Top-10":0.9318,"Precision@5":0.9019,"Recall@5":0.9019,"MRR":0.9183}],"topk":{"ks":[1,3,5,10],"arm_a":[0.8745,0.9253,0.9394,0.9654],"arm_b":[0.9102,0.9242,0.9286,0.9318],"a_model":"TF-IDF cosine retrieval","b_model":"Hybrid semantic+lexical, category-filtered","a_mrr":0.9036,"b_mrr":0.9183},"operational":[{"Dimension":"Models fitted for deployment","Arm A (end-to-end)":"5 base classifiers \u00d7 2 tasks, combined by vote","Arm B (task-specific)":"1 encoder + 1 head per label task + 1 index"},{"Dimension":"Representations maintained","Arm A (end-to-end)":"1 shared TF-IDF vocabulary (+1 for retrieval)","Arm B (task-specific)":"1 shared sentence-embedding space"},{"Dimension":"Inference per ticket","Arm A (end-to-end)":"1 vectorise \u2192 10 model calls \u2192 2 votes \u2192 1 search","Arm B (task-specific)":"1 encode \u2192 B1 \u2192 B2 (consumes B1) \u2192 1 search"},{"Dimension":"Training cost (s)","Arm A (end-to-end)":"432.1 (supervised fits)","Arm B (task-specific)":"134.8 encode + head fits"},{"Dimension":"Adding a new category or resolver","Arm A (end-to-end)":"refit all 5 base classifiers for that task","Arm B (task-specific)":"refit one head; the encoder is unchanged"},{"Dimension":"Cold-start on unseen vocabulary","Arm A (end-to-end)":"out-of-vocabulary terms are simply dropped","Arm B (task-specific)":"encoder generalises from pretraining"},{"Dimension":"Explanation offered to the resolver","Arm A (end-to-end)":"vote margin across base classifiers","Arm B (task-specific)":"the neighbouring tickets and their resolutions"},{"Dimension":"Failure coupling","Arm A (end-to-end)":"tasks independent; a bad category does not affect routing","Arm B (task-specific)":"cascaded: routing inherits B1 error (OOF agreement 0.890)"}],"combining":[{"Task":"Ticket classification","Arm A best single branch":"Linear SVM","Branch macro F1":0.899,"Arm A combined macro F1":0.9009,"Combining gain":0.0019,"Arm B macro F1":0.8793,"Arm B head":"k-NN (cosine)","Arm B feature set":"+ text-shape context"},{"Task":"Resolver routing","Arm A best single branch":"Multinomial Naive Bayes","Branch macro F1":0.7046,"Arm A combined macro F1":0.6958,"Combining gain":-0.0088,"Arm B macro F1":0.6888,"Arm B head":"Linear SVM","Arm B feature set":"+ predicted-category context"}],"confusion":{"arm_a_routing":{"labels":["Applications Support Team","Hardware & Maintenance Team","Help Desk (Tier 1)","MIS / SIS Support Team","Network Team","Systems & Accounts Team","eLearning Support Unit"],"rows":["Applications Support Team","Hardware & Maintenance Team","Help Desk (Tier 1)","MIS / SIS Support Team","Network Team","Systems & Accounts Team","eLearning Support Unit"],"counts":[[69,12,0,5,0,2,5],[8,121,0,0,8,1,0],[9,12,3,6,14,62,12],[0,1,0,95,1,5,0],[0,3,3,8,136,3,2],[0,3,15,0,0,166,11],[4,1,2,0,2,9,105]],"norm":[[0.7419,0.129,0.0,0.0538,0.0,0.0215,0.0538],[0.058,0.8768,0.0,0.0,0.058,0.0072,0.0],[0.0763,0.1017,0.0254,0.0508,0.1186,0.5254,0.1017],[0.0,0.0098,0.0,0.9314,0.0098,0.049,0.0],[0.0,0.0194,0.0194,0.0516,0.8774,0.0194,0.0129],[0.0,0.0154,0.0769,0.0,0.0,0.8513,0.0564],[0.0325,0.0081,0.0163,0.0,0.0163,0.0732,0.8537]]},"arm_b_routing":{"labels":["Applications Support Team","Hardware & Maintenance Team","Help Desk (Tier 1)","MIS / SIS Support Team","Network Team","Systems & Accounts Team","eLearning Support Unit"],"rows":["Applications Support Team","Hardware & Maintenance Team","Help Desk (Tier 1)","MIS / SIS Support Team","Network Team","Systems & Accounts Team","eLearning Support Unit"],"counts":[[72,13,0,4,0,0,4],[14,107,1,1,12,1,2],[9,11,7,8,15,52,16],[1,2,0,95,0,2,2],[0,4,2,11,136,1,1],[1,0,26,2,4,151,11],[8,1,1,3,1,3,106]],"norm":[[0.7742,0.1398,0.0,0.043,0.0,0.0,0.043],[0.1014,0.7754,0.0072,0.0072,0.087,0.0072,0.0145],[0.0763,0.0932,0.0593,0.0678,0.1271,0.4407,0.1356],[0.0098,0.0196,0.0,0.9314,0.0,0.0196,0.0196],[0.0,0.0258,0.0129,0.071,0.8774,0.0065,0.0065],[0.0051,0.0,0.1333,0.0103,0.0205,0.7744,0.0564],[0.065,0.0081,0.0081,0.0244,0.0081,0.0244,0.8618]]}},"per_class":{"arm_a_routing":[{"Class":"Systems & Accounts Team","Precision":0.669,"Recall":0.851,"F1":0.749,"Support":195},{"Class":"Network Team","Precision":0.845,"Recall":0.877,"F1":0.861,"Support":155},{"Class":"Hardware & Maintenance Team","Precision":0.791,"Recall":0.877,"F1":0.832,"Support":138},{"Class":"eLearning Support Unit","Precision":0.778,"Recall":0.854,"F1":0.814,"Support":123},{"Class":"Help Desk (Tier 1)","Precision":0.13,"Recall":0.025,"F1":0.043,"Support":118},{"Class":"MIS / SIS Support Team","Precision":0.833,"Recall":0.931,"F1":0.88,"Support":102},{"Class":"Applications Support Team","Precision":0.767,"Recall":0.742,"F1":0.754,"Support":93}],"arm_b_routing":[{"Class":"Systems & Accounts Team","Precision":0.719,"Recall":0.774,"F1":0.746,"Support":195},{"Class":"Network Team","Precision":0.81,"Recall":0.877,"F1":0.842,"Support":155},{"Class":"Hardware & Maintenance Team","Precision":0.775,"Recall":0.775,"F1":0.775,"Support":138},{"Class":"eLearning Support Unit","Precision":0.746,"Recall":0.862,"F1":0.8,"Support":123},{"Class":"Help Desk (Tier 1)","Precision":0.189,"Recall":0.059,"F1":0.09,"Support":118},{"Class":"MIS / SIS Support Team","Precision":0.766,"Recall":0.931,"F1":0.841,"Support":102},{"Class":"Applications Support Team","Precision":0.686,"Recall":0.774,"F1":0.727,"Support":93}]}};
+
+/* ---------- small helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const f3 = v => (v == null || isNaN(v)) ? "—" : Number(v).toFixed(3);
+const pct = v => (v == null || isNaN(v)) ? "—" : (Number(v) * 100).toFixed(1) + "%";
+/* One canonical order for the two labelled decisions, so panels pair up the
+   same way in every section instead of following CSV row order. */
+const TASK_ORDER = ["Ticket classification", "Resolver routing"];
+const byTask = (a, b) => TASK_ORDER.indexOf(a) - TASK_ORDER.indexOf(b);
+const SVGNS = "http://www.w3.org/2000/svg";
+const el = (n, a = {}, kids = []) => {
+  const e = document.createElementNS(SVGNS, n);
+  for (const k in a) e.setAttribute(k, a[k]);
+  (Array.isArray(kids) ? kids : [kids]).forEach(k => k && e.appendChild(k));
+  return e;
+};
+const txt = (s, a = {}) => { const t = el("text", a); t.textContent = s; return t; };
+/* A viewBox with width:100% upscales text along with the marks. Cap every chart
+   at its natural width so 11px stays 11px. */
+const cap = (svg, w) => { svg.style.maxWidth = w + "px"; return svg; };
+
+/* rounded on the data-end only, square at the baseline (mark spec) */
+function barPath(x, y, w, h, r, dir){
+  r = Math.max(0, Math.min(r, dir === "h" ? w : h, (dir === "h" ? h : w) / 2));
+  if (dir === "h") return `M${x},${y} H${x+w-r} A${r},${r} 0 0 1 ${x+w},${y+r}
+    V${y+h-r} A${r},${r} 0 0 1 ${x+w-r},${y+h} H${x} Z`;
+  return `M${x},${y+r} A${r},${r} 0 0 1 ${x+r},${y} H${x+w-r} A${r},${r} 0 0 1 ${x+w},${y+r}
+    V${y+h} H${x} Z`;
+}
+
+/* ---------- tooltip ---------- */
+const tip = $("#tip");
+function bindTip(node, html){
+  node.addEventListener("pointerenter", e => {
+    tip.innerHTML = html; tip.style.opacity = 1; moveTip(e);
+  });
+  node.addEventListener("pointermove", moveTip);
+  node.addEventListener("pointerleave", () => { tip.style.opacity = 0; });
+}
+function moveTip(e){
+  const pad = 14, w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  if (x + w > innerWidth - 8) x = e.clientX - w - pad;
+  if (y + h > innerHeight - 8) y = e.clientY - h - pad;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+
+/* ---------- horizontal bar chart (one series, optional emphasis) ---------- */
+function hbars(items, opts = {}){
+  const {width = 430, rowH = 27, barH = 18, padL = 0, fmt = f3,
+         max = Math.max(...items.map(d => d.value)) * 1.0, labelW = 150,
+         valueW = 46} = opts;
+  const plotW = width - labelW - valueW;
+  const h = items.length * rowH + 6;
+  const svg = el("svg", {width: "100%", viewBox: `0 0 ${width} ${h}`,
+                         role: "img", "aria-label": opts.aria || "bar chart"});
+  items.forEach((d, i) => {
+    const y = i * rowH + 3;
+    const bw = Math.max(1.5, (d.value / max) * plotW);
+    svg.appendChild(txt(d.label, {x: labelW - 8, y: y + barH / 2 + 4,
+      "text-anchor": "end", class: "clabel"}));
+    const p = el("path", {d: barPath(labelW, y + (rowH - barH) / 2 - 3, bw, barH, 4, "h"),
+      fill: d.color || "var(--series-1)"});
+    bindTip(p, `<b>${esc(d.label)}</b><br>${esc(opts.metric || "value")}: ${fmt(d.value)}`
+      + (d.extra ? `<br>${esc(d.extra)}` : ""));
+    svg.appendChild(p);
+    svg.appendChild(txt(fmt(d.value), {x: labelW + bw + 7, y: y + barH / 2 + 4, class: "vlabel"}));
+  });
+  return cap(svg, width);
+}
+
+/* ---------- grouped bars (two series) ---------- */
+function groupedBars(groups, series, opts = {}){
+  const {width = 470, height = 210, fmt = f3, max = 1} = opts;
+  const padL = 44, padB = 34, padT = 8, padR = 8;
+  const plotW = width - padL - padR, plotH = height - padB - padT;
+  const svg = el("svg", {width: "100%", viewBox: `0 0 ${width} ${height}`,
+                         role: "img", "aria-label": opts.aria || "grouped bars"});
+  [0, .25, .5, .75, 1].forEach(t => {
+    const y = padT + plotH - t * plotH;
+    svg.appendChild(el("line", {x1: padL, x2: padL + plotW, y1: y, y2: y,
+      stroke: "var(--grid)", "stroke-width": 1}));
+    svg.appendChild(txt((t * max).toFixed(2), {x: padL - 7, y: y + 3.5,
+      "text-anchor": "end", class: "tick"}));
+  });
+  const gW = plotW / groups.length, n = series.length;
+  const GAP = 10;                      // > the 2px minimum: these labels need room
+  const bw = Math.min(22, (gW * 0.5 - GAP * (n - 1)) / n);
+  groups.forEach((g, gi) => {
+    const cx = padL + gW * (gi + 0.5);
+    series.forEach((s, si) => {
+      const v = g.values[si];
+      const bh = Math.max(1.5, (v / max) * plotH);
+      // 2px surface gap between adjacent bars
+      const x = cx - (n * bw + (n - 1) * GAP) / 2 + si * (bw + GAP);
+      const y = padT + plotH - bh;
+      const p = el("path", {d: barPath(x, y, bw, bh, 4, "v"), fill: s.color});
+      bindTip(p, `<b>${esc(g.label)}</b><br>${esc(s.name)}: ${fmt(v)}`);
+      svg.appendChild(p);
+      svg.appendChild(txt(fmt(v), {x: x + bw / 2, y: y - 5,
+        "text-anchor": "middle", class: "vlabel"}));
+    });
+    (g.label.length > 18 ? g.label.split(" ") : [g.label]).forEach((line, li, arr) => {
+      svg.appendChild(txt(line, {x: cx, y: padT + plotH + 15 + li * 11,
+        "text-anchor": "middle", class: "clabel"}));
+    });
+  });
+  svg.appendChild(el("line", {x1: padL, x2: padL + plotW, y1: padT + plotH,
+    y2: padT + plotH, stroke: "var(--axis)", "stroke-width": 1}));
+  return cap(svg, width);
+}
+
+/* ---------- line panel (one or two series) ---------- */
+function linePanel(xLabels, series, opts = {}){
+  const {width = 470, height = 215, fmt = f3, yMin, yMax} = opts;
+  const padL = 46, padB = 40, padT = 10, padR = 14;
+  const plotW = width - padL - padR, plotH = height - padB - padT;
+  const all = series.flatMap(s => s.values).filter(v => v != null);
+  const lo = yMin != null ? yMin : Math.min(...all), hi = yMax != null ? yMax : Math.max(...all);
+  // Guard against a misleading truncated axis: without a floor on the span, a
+  // 0.003 change fills the panel and reads as dramatic. The finding here is that
+  // these blocks add very little; the axis must show that.
+  const minSpan = opts.minSpan != null ? opts.minSpan : 0;
+  let y0 = lo - ((hi - lo) * 0.25 || 0.02), y1 = hi + ((hi - lo) * 0.25 || 0.02);
+  if (y1 - y0 < minSpan) { const c = (y0 + y1) / 2; y0 = c - minSpan / 2; y1 = c + minSpan / 2; }
+  const X = i => padL + (xLabels.length === 1 ? plotW / 2 : (i / (xLabels.length - 1)) * plotW);
+  const Y = v => padT + plotH - ((v - y0) / (y1 - y0)) * plotH;
+  const svg = el("svg", {width: "100%", viewBox: `0 0 ${width} ${height}`,
+                         role: "img", "aria-label": opts.aria || "line chart"});
+  [0, .25, .5, .75, 1].forEach(t => {
+    const v = y0 + t * (y1 - y0), y = Y(v);
+    svg.appendChild(el("line", {x1: padL, x2: padL + plotW, y1: y, y2: y,
+      stroke: "var(--grid)", "stroke-width": 1}));
+    svg.appendChild(txt(v.toFixed(3), {x: padL - 7, y: y + 3.5, "text-anchor": "end", class: "tick"}));
+  });
+  series.forEach(s => {
+    const pts = s.values.map((v, i) => [X(i), Y(v)]);
+    svg.appendChild(el("path", {d: "M" + pts.map(p => p.join(",")).join(" L"),
+      fill: "none", stroke: s.color, "stroke-width": 2,
+      "stroke-linejoin": "round", "stroke-linecap": "round"}));
+    pts.forEach((p, i) => {
+      // 2px surface ring keeps markers legible where they overlap
+      svg.appendChild(el("circle", {cx: p[0], cy: p[1], r: 6, fill: "var(--surface-1)"}));
+      const c = el("circle", {cx: p[0], cy: p[1], r: 4, fill: s.color});
+      bindTip(c, `<b>${esc(xLabels[i])}</b><br>${esc(s.name)}: ${fmt(s.values[i])}`
+        + (s.extras && s.extras[i] ? `<br>${esc(s.extras[i])}` : ""));
+      svg.appendChild(c);
+    });
+    // label only the endpoint (selective direct labels)
+    const last = pts[pts.length - 1];
+    svg.appendChild(txt(fmt(s.values[s.values.length - 1]),
+      {x: last[0] + 9, y: last[1] + 4, class: "vlabel"}));
+  });
+  xLabels.forEach((l, i) => {
+    const lines = String(l).split("\n");
+    lines.forEach((ln, li) => svg.appendChild(txt(ln, {x: X(i),
+      y: padT + plotH + 15 + li * 10.5, "text-anchor": "middle", class: "clabel"})));
+  });
+  svg.appendChild(el("line", {x1: padL, x2: padL + plotW, y1: padT + plotH,
+    y2: padT + plotH, stroke: "var(--axis)", "stroke-width": 1}));
+  return cap(svg, width);
+}
+
+/* ---------- heatmap (sequential, continuous) ---------- */
+const SEQ = ["--seq-100","--seq-250","--seq-400","--seq-550","--seq-700"];
+function seqColor(t){
+  const i = Math.min(SEQ.length - 1, Math.max(0, Math.round(t * (SEQ.length - 1))));
+  return `var(${SEQ[i]})`;
+}
+function heatmap(m, opts = {}){
+  const {width = 470, cell = 34, labelW = 118, topH = 62} = opts;
+  const n = m.labels.length;
+  const height = topH + n * cell + 12;
+  const svg = el("svg", {width: "100%", viewBox: `0 0 ${labelW + n * cell + 14} ${height}`,
+                         role: "img", "aria-label": opts.aria || "confusion matrix"});
+  m.labels.forEach((l, j) => {
+    const g = el("g", {transform: `translate(${labelW + j * cell + cell / 2},${topH - 8}) rotate(-45)`});
+    g.appendChild(txt(l.length > 17 ? l.slice(0, 16) + "…" : l, {x: 0, y: 0, class: "clabel"}));
+    svg.appendChild(g);
+  });
+  m.rows.forEach((r, i) => {
+    svg.appendChild(txt(r.length > 19 ? r.slice(0, 18) + "…" : r,
+      {x: labelW - 8, y: topH + i * cell + cell / 2 + 4, "text-anchor": "end", class: "clabel"}));
+    m.labels.forEach((c, j) => {
+      const v = m.norm[i][j];
+      // 2px surface gap between cells
+      const rect = el("rect", {x: labelW + j * cell + 1, y: topH + i * cell + 1,
+        width: cell - 2, height: cell - 2, rx: 3,
+        fill: v > 0.004 ? seqColor(v) : "var(--plane)"});
+      bindTip(rect, `actual <b>${esc(r)}</b><br>predicted <b>${esc(c)}</b><br>`
+        + `${(v * 100).toFixed(1)}% of this row · ${m.counts[i][j]} tickets`);
+      svg.appendChild(rect);
+      if (v >= 0.10) {
+        // label inside the fill: ink chosen by fill luminance
+        svg.appendChild(txt(v.toFixed(2), {x: labelW + j * cell + cell / 2,
+          y: topH + i * cell + cell / 2 + 3.5, "text-anchor": "middle",
+          "font-size": 10.5, fill: v > 0.55 ? "#ffffff" : "var(--text-primary)"}));
+      }
+    });
+  });
+  return cap(svg, labelW + n * cell + 14);
+}
+
+function tableFrom(rows, cols, opts = {}){
+  if (!rows || !rows.length) return "";
+  const t = document.createElement("table");
+  t.innerHTML = `<thead><tr>${cols.map(c =>
+      `<th class="${c.num ? "num" : ""}">${esc(c.title)}</th>`).join("")}</tr></thead>`
+    + `<tbody>${rows.map(r => `<tr>${cols.map(c => {
+        const v = c.get ? c.get(r) : r[c.key];
+        return `<td class="${c.num ? "num" : ""}">${c.html ? v : esc(v == null ? "—" : v)}</td>`;
+      }).join("")}</tr>`).join("")}</tbody>`;
+  return t.outerHTML;
+}
+const detailsTable = (label, html) =>
+  `<details><summary>${esc(label)}</summary>${html}</details>`;
+
+const legend2 = (a, b) => `<div class="legend">
+  <span><i class="sw" style="background:var(--series-1)"></i>${esc(a)}</span>
+  <span><i class="sw" style="background:var(--series-2)"></i>${esc(b)}</span></div>`;
+
+function mount(sel, html){ $(sel).innerHTML = html; }
+function put(sel, node){ const t = $(sel); if (t) t.appendChild(node); }
+
+/* =======================================================================
+   SECTIONS
+   ======================================================================= */
+function kpis(){
+  const c = DATA.corpus, e = DATA.encoder;
+  const wins = DATA.decisions.reduce((a, d) => (a[d.winner] = (a[d.winner] || 0) + 1, a), {});
+  mount("#s-kpi", `<div class="kpis">
+    <div class="kpi"><div class="k">Analysable corpus</div><div class="v">${c.n_clean?.toLocaleString() ?? "—"}</div>
+      <div class="s">${c.n_train?.toLocaleString()} train · ${c.n_test?.toLocaleString()} held out</div></div>
+    <div class="kpi"><div class="k">Decisions compared</div><div class="v">3</div>
+      <div class="s">two model architectures</div></div>
+    <div class="kpi"><div class="k">Service categories</div><div class="v">${c.categories.length}</div>
+      <div class="s">imbalance ratio ${c.category_imbalance ?? "—"}</div></div>
+    <div class="kpi"><div class="k">Resolver teams</div><div class="v">${c.teams.length}</div>
+      <div class="s">imbalance ratio ${c.team_imbalance ?? "—"}</div></div>
+    <div class="kpi"><div class="k">Split verdict</div><div class="v">${wins["Arm A"] || 0}–${wins["Arm B"] || 0}</div>
+      <div class="s">Arm A – Arm B, all significant</div></div>
+  </div>`);
+}
+
+function verdict(){
+  const s = $("#s-verdict");
+  s.innerHTML = `<h2>The headline comparison<span class="obj">Objective 3 &amp; 4</span></h2>
+    <p class="note">Each decision is shown with <em>its own</em> metric — macro F1 for the
+    two classification decisions, Mean Reciprocal Rank for retrieval — on its own axis,
+    because those quantities are not comparable across decisions. Significance is
+    McNemar's exact test on the paired held-out predictions.</p>
+    ${legend2("Arm A — end-to-end", "Arm B — task-specific")}
+    <div class="grid3" id="verdict-panels"></div>`;
+  const host = $("#verdict-panels");
+  DATA.decisions.forEach(d => {
+    const card = document.createElement("div");
+    card.className = "card";
+    const badge = d.significant
+      ? `<span class="badge sig">✓ significant · p=${d.p}</span>`
+      : `<span class="badge ns">— not significant · p=${d.p}</span>`;
+    card.innerHTML = `<p class="ptitle">${esc(d.task)}</p>
+      <p class="psub">${esc(d.metric)} · winner <b>${esc(d.winner)}</b></p>`;
+    card.appendChild(hbars([
+      {label: "Arm A", value: d.a, color: "var(--series-1)",
+       extra: d.a_model + " · " + d.secondary_metric + " " + f3(d.a_secondary)},
+      {label: "Arm B", value: d.b, color: "var(--series-2)",
+       extra: d.b_model + " · " + d.secondary_metric + " " + f3(d.b_secondary)},
+    ], {width: 350, labelW: 54, max: 1, metric: d.metric, aria: d.task + " comparison"}));
+    const extra = document.createElement("div");
+    extra.style.marginTop = "8px";
+    extra.innerHTML = badge
+      + `<div class="psub" style="margin-top:7px">Δ ${d.delta > 0 ? "+" : ""}${d.delta}
+         in favour of ${esc(d.winner)} · they disagreed on
+         ${(d.b_disagree ?? 0) + (d.c_disagree ?? 0)} held-out tickets`
+      + (d.baseline != null ? `<br>majority-class baseline ${f3(d.baseline)}` : "") + `</div>`;
+    card.appendChild(extra);
+    host.appendChild(card);
+  });
+  const t = tableFrom(DATA.significance, [
+    {title: "Decision", key: "Task"},
+    {title: "A right / B wrong", key: "A right / B wrong (b)", num: true},
+    {title: "A wrong / B right", key: "A wrong / B right (c)", num: true},
+    {title: "p-value", key: "p-value", num: true},
+    {title: "Favours", key: "Favours"},
+  ]);
+  s.insertAdjacentHTML("beforeend", detailsTable("Show significance table (Table 4.9)", t));
+}
+
+function obj1(){
+  const s = $("#s-obj1");
+  const tasks = [...new Set(DATA.ablation.map(r => r.Task))].sort(byTask);
+  s.innerHTML = `<h2>What each context block is worth<span class="obj">Objective 1 · RQ1</span></h2>
+    <p class="note">Blocks are added cumulatively to the semantic representation and scored by
+    cross-validation on the training partition, so feature selection never touches the held-out
+    set. Each block's weight is itself tuned, so a block is judged at its best setting rather
+    than penalised for how it happens to be encoded. Note the y-ranges differ per panel — these
+    are separate decisions, not one series.</p>
+    <div class="grid2" id="abl-panels"></div>`;
+  const host = $("#abl-panels");
+  tasks.forEach(t => {
+    const rows = DATA.ablation.filter(r => r.Task === t);
+    const card = document.createElement("div");
+    card.className = "card";
+    const gain = rows[rows.length - 1]["CV F1 (macro)"] - rows[0]["CV F1 (macro)"];
+    card.innerHTML = `<p class="ptitle">${esc(t)}</p>
+      <p class="psub">cross-validated macro F1 · total change ${gain >= 0 ? "+" : ""}${gain.toFixed(4)}</p>`;
+    const SHORT = {"Semantic text only": "text\nonly", "+ department metadata": "+ dept",
+                   "+ temporal context": "+ time", "+ text-shape context": "+ shape",
+                   "+ predicted-category context": "+ category"};
+    card.appendChild(linePanel(
+      rows.map(r => SHORT[r["Feature set"]] || r["Feature set"]),
+      [{name: t, color: "var(--series-1)",
+        values: rows.map(r => r["CV F1 (macro)"]),
+        extras: rows.map(r => `${r["Feature set"]} · ${r.Dimensions}d · weight ${r["Block weight"]}`)}],
+      {aria: t + " ablation", minSpan: 0.05}));
+    host.appendChild(card);
+  });
+  s.insertAdjacentHTML("beforeend", detailsTable("Show ablation table (Table 4.3)",
+    tableFrom(DATA.ablation, [
+      {title: "Decision", key: "Task"}, {title: "Feature set", key: "Feature set"},
+      {title: "Dims", key: "Dimensions", num: true},
+      {title: "Weight", key: "Block weight", num: true},
+      {title: "CV macro F1", key: "CV F1 (macro)", num: true},
+      {title: "Change", key: "Δ vs previous", num: true},
+    ])));
+}
+
+function obj2(){
+  const s = $("#s-obj2");
+  const tasks = [...new Set(DATA.representation.map(r => r.Task))].sort(byTask);
+  const ctx = t => DATA.representation.find(r => r.Task === t && /Contextual/.test(r.Representation));
+  const lex = t => DATA.representation.find(r => r.Task === t && /Lexical/.test(r.Representation));
+  s.innerHTML = `<h2>Contextual versus lexical representation<span class="obj">Objective 2 · RQ2</span></h2>
+    <p class="note">Section 3.11 required that the superiority of contextual representations be
+    <em>tested</em> rather than assumed. Same classifier head, same folds, only the representation
+    changes. Neither dominates: the sentence encoder wins classification decisively and loses
+    routing narrowly — so representation is a per-decision empirical choice, not one architectural
+    commitment.</p>
+    <div class="card">
+      <div class="legend">
+        <span><i class="sw" style="background:var(--series-1)"></i>Contextual sentence embedding</span>
+        <span><i class="sw" style="background:var(--series-2)"></i>Lexical TF-IDF → LSA</span>
+      </div>
+      <div id="rep-chart"></div>
+    </div>`;
+  put("#rep-chart", groupedBars(
+    tasks.map(t => ({label: t, values: [ctx(t)["CV F1 (macro)"], lex(t)["CV F1 (macro)"]]})),
+    [{name: "Contextual sentence embedding", color: "var(--series-1)"},
+     {name: "Lexical TF-IDF → LSA", color: "var(--series-2)"}],
+    {width: 560, height: 235, max: 1, aria: "representation comparison"}));
+  s.insertAdjacentHTML("beforeend", detailsTable("Show representation table (Table 4.4)",
+    tableFrom(DATA.representation, [
+      {title: "Decision", key: "Task"}, {title: "Representation", key: "Representation"},
+      {title: "Head", key: "Head"}, {title: "Dims", key: "Dimensions", num: true},
+      {title: "CV macro F1", key: "CV F1 (macro)", num: true},
+    ])));
+}
+
+function obj3(){
+  const s = $("#s-obj3");
+  const tasks = [...new Set(DATA.arm_a_models.map(r => r.Task))].sort(byTask);
+  s.innerHTML = `<h2>Candidate models<span class="obj">Objective 3 · RQ3</span></h2>
+    <p class="note">Arm A's five Table&nbsp;3.2 branches and the three combination rules read from
+    one shared representation. The combined model is highlighted; the individual branches are
+    context. Note that on resolver routing, combining was <em>worse</em> than the best single
+    branch — voting is not free.</p>
+    <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(420px,1fr))" id="a-panels"></div>`;
+  const host = $("#a-panels");
+  const armAPanel = t => {
+    const rows = DATA.arm_a_models.filter(r => r.Task === t)
+      .sort((x, y) => x["F1 (macro)"] - y["F1 (macro)"]);
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `<p class="ptitle">${esc(t)} — Arm A</p>
+      <p class="psub">macro F1 on the held-out set · combined model highlighted</p>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--series-1)"></i>combined (voted)</span>
+        <span><i class="sw" style="background:var(--deemph)"></i>individual branch</span></div>`;
+    card.appendChild(hbars(rows.map(r => ({
+      label: r.Model.replace("COMBINED ", "").replace(/[()]/g, ""),
+      value: r["F1 (macro)"],
+      color: /combined/i.test(r.Arm) ? "var(--series-1)" : "var(--deemph)",
+      extra: `accuracy ${f3(r.Accuracy)} · fit ${r["Fit time (s)"]}s`,
+    })), {width: 470, labelW: 152, max: Math.max(...rows.map(r => r["F1 (macro)"])) * 1.12,
+          metric: "macro F1", aria: t + " Arm A models"}));
+    return card;
+  };
+  const armBPanel = t => {
+    const rows = DATA.arm_b_heads.filter(r => r.Task === t)
+      .sort((x, y) => x["CV F1 (macro)"] - y["CV F1 (macro)"]);
+    if (!rows.length) return null;
+    const best = Math.max(...rows.map(r => r["CV F1 (macro)"]));
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `<p class="ptitle">${esc(t)} — Arm B head selection</p>
+      <p class="psub">cross-validated macro F1 on the semantic representation · selected head highlighted</p>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--series-2)"></i>selected</span>
+        <span><i class="sw" style="background:var(--deemph)"></i>candidate</span></div>`;
+    card.appendChild(hbars(rows.map(r => ({
+      label: r.Head, value: r["CV F1 (macro)"],
+      color: r["CV F1 (macro)"] === best ? "var(--series-2)" : "var(--deemph)",
+      extra: `${r["Best params"]} · ${r["Tune time (s)"]}s`,
+    })), {width: 470, labelW: 152, max: best * 1.12, metric: "CV macro F1",
+          aria: t + " Arm B heads"}));
+    return card;
+  };
+  // Arm A then Arm B for the SAME decision, side by side
+  tasks.forEach(t => {
+    [armAPanel(t), armBPanel(t)].forEach(c => c && host.appendChild(c));
+  });
+  s.insertAdjacentHTML("beforeend", detailsTable("Show Arm A model table (Table 4.5)",
+    tableFrom(DATA.arm_a_models, [
+      {title: "Decision", key: "Task"}, {title: "Model", key: "Model"},
+      {title: "Accuracy", key: "Accuracy", num: true},
+      {title: "Macro F1", key: "F1 (macro)", num: true},
+      {title: "Weighted F1", key: "F1 (weighted)", num: true},
+      {title: "Fit (s)", key: "Fit time (s)", num: true},
+    ])));
+  s.insertAdjacentHTML("beforeend", detailsTable("Show Arm B configuration (Table 4.7)",
+    tableFrom(DATA.arm_b_models, [
+      {title: "Decision", key: "Task"}, {title: "Head", key: "Head"},
+      {title: "Feature set", key: "Feature set"},
+      {title: "Dims", key: "Dimensions", num: true},
+      {title: "Accuracy", key: "Accuracy", num: true},
+      {title: "Macro F1", key: "F1 (macro)", num: true},
+    ])));
+}
+
+function obj4(){
+  const s = $("#s-obj4");
+  const tk = DATA.topk;
+  s.innerHTML = `<h2>Historical-resolution recommendation<span class="obj">Objective 4 · RQ4</span></h2>
+    <p class="note">The one decision where the task-specific arm wins outright. Mean Reciprocal Rank
+    sits above Top-1 accuracy in both arms, which means that when the best match is not ranked first
+    it is usually very close to first — exactly what matters for a tool that shows a resolver a short
+    candidate list.</p>
+    <div class="grid2">
+      <div class="card">
+        <p class="ptitle">Top-K accuracy</p>
+        <p class="psub">share of held-out queries with a relevant ticket in the top K</p>
+        ${legend2("Arm A — lexical retrieval", "Arm B — context-aware retrieval")}
+        <div id="topk-chart"></div>
+      </div>
+      <div class="card">
+        <p class="ptitle">Arm B retrieval variants</p>
+        <p class="psub">Mean Reciprocal Rank · best variant highlighted</p>
+        <div id="var-chart"></div>
+      </div>
+    </div>`;
+  put("#topk-chart", linePanel(tk.ks.map(k => "K=" + k),
+    [{name: "Arm A — lexical", color: "var(--series-1)", values: tk.arm_a},
+     {name: "Arm B — context-aware", color: "var(--series-2)", values: tk.arm_b}],
+    {width: 500, height: 235, aria: "Top-K accuracy"}));
+  const vs = DATA.recommendation_variants.slice().sort((a, b) => a.MRR - b.MRR);
+  const bestMrr = Math.max(...vs.map(v => v.MRR));
+  put("#var-chart", hbars(vs.map(v => ({
+    label: v.Variant.replace(/ \(w=.*\)/, ""), value: v.MRR,
+    color: v.MRR === bestMrr ? "var(--series-2)" : "var(--deemph)",
+    extra: `Top-1 ${f3(v["Top-1"])} · Top-5 ${f3(v["Top-5"])}`,
+  })), {width: 500, labelW: 196, max: bestMrr * 1.1, metric: "MRR",
+        aria: "recommendation variants"}));
+  s.insertAdjacentHTML("beforeend", detailsTable("Show variant table (Table 4.13)",
+    tableFrom(DATA.recommendation_variants, [
+      {title: "Variant", key: "Variant"},
+      {title: "Top-1", key: "Top-1", num: true}, {title: "Top-3", key: "Top-3", num: true},
+      {title: "Top-5", key: "Top-5", num: true}, {title: "Top-10", key: "Top-10", num: true},
+      {title: "P@5", key: "Precision@5", num: true}, {title: "MRR", key: "MRR", num: true},
+    ])));
+}
+
+function confusion(){
+  const s = $("#s-confusion");
+  const a = DATA.confusion.arm_a_routing, b = DATA.confusion.arm_b_routing;
+  if (!a && !b) return;
+  s.innerHTML = `<h2>Where routing goes wrong<span class="obj">Objective 3</span></h2>
+    <p class="note">Row-normalised: each row is the actual team, each column the predicted team,
+    so the diagonal is correct routing. The error is not diffuse — it concentrates on team pairs
+    whose tickets are described in overlapping language, and on the first-line team, which
+    legitimately receives every kind of request. Darker means a larger share of the row.</p>
+    <div class="grid2" id="cm-panels"></div>`;
+  const host = $("#cm-panels");
+  [[a, "Arm A — end-to-end"], [b, "Arm B — task-specific"]].forEach(([m, name]) => {
+    if (!m) return;
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `<p class="ptitle">${esc(name)}</p>
+      <p class="psub">resolver routing · hover a cell for counts</p>`;
+    card.appendChild(heatmap(m, {aria: name + " routing confusion"}));
+    host.appendChild(card);
+  });
+  const pc = DATA.per_class.arm_a_routing;
+  if (pc && pc.length) {
+    s.insertAdjacentHTML("beforeend", detailsTable("Show per-class routing performance (Table 4.11)",
+      tableFrom(pc, [
+        {title: "Team", key: "Class"}, {title: "Precision", key: "Precision", num: true},
+        {title: "Recall", key: "Recall", num: true}, {title: "F1", key: "F1", num: true},
+        {title: "Support", key: "Support", num: true},
+      ])));
+  }
+}
+
+function operational(){
+  const s = $("#s-operational");
+  if (!DATA.operational.length) return;
+  s.innerHTML = `<h2>What actually separates the two arms<span class="obj">Section 2.11</span></h2>
+    <p class="note">On accuracy the arms are close. The differences that bear on a deployment
+    decision are operational — retraining cost when the service catalogue changes, whether an
+    error in one decision propagates into another, and whether the system can explain itself to
+    the resolver who has to act on it.</p>
+    <div class="card">${tableFrom(DATA.operational, [
+      {title: "Dimension", key: "Dimension"},
+      {title: "Arm A — end-to-end", key: "Arm A (end-to-end)"},
+      {title: "Arm B — task-specific", key: "Arm B (task-specific)"},
+    ])}</div>`;
+}
+
+function corpus(){
+  const s = $("#s-corpus");
+  const c = DATA.corpus;
+  s.innerHTML = `<h2>The corpus<span class="obj">Section 4.2</span></h2>
+    <p class="note">Screening retained ${c.screening.length ? c.screening[c.screening.length-1]["Retention %"] : "—"}%
+    of extracted records through a documented sequence, so every exclusion traces to a stated rule
+    rather than analyst discretion. Class imbalance is moderate, which is why macro-averaged F1 —
+    weighting every class equally — is the primary metric throughout.</p>
+    <div class="grid2">
+      <div class="card"><p class="ptitle">Service category</p>
+        <p class="psub">tickets after screening</p><div id="cat-chart"></div></div>
+      <div class="card"><p class="ptitle">Resolver team</p>
+        <p class="psub">tickets after screening</p><div id="team-chart"></div></div>
+    </div>`;
+  const mk = (rows, sel) => put(sel, hbars(
+    rows.slice().sort((a, b) => a.n - b.n).map(d => ({
+      label: d.label, value: d.n, extra: d.pct + "% of corpus"})),
+    {width: 470, labelW: 186, fmt: v => v.toLocaleString(), metric: "tickets",
+     max: Math.max(...rows.map(r => r.n)) * 1.14, aria: "class distribution"}));
+  mk(c.category_dist, "#cat-chart");
+  mk(c.team_dist, "#team-chart");
+  s.insertAdjacentHTML("beforeend", detailsTable("Show screening audit (Table 4.1)",
+    tableFrom(c.screening, [
+      {title: "Screening step", key: "Screening step"},
+      {title: "Removed", key: "Records removed", num: true},
+      {title: "Remaining", key: "Records remaining", num: true},
+      {title: "Retention %", key: "Retention %", num: true},
+    ])));
+}
+
+/* This file is also meant to work standalone - double-clicked, or off a USB
+   stick - where "/" is not the prototype. Only offer the switcher when we are
+   actually being served by models.end_to_end.serve. */
+if (location.protocol === "http:" || location.protocol === "https:") {
+  $("#nav").classList.add("on");
+}
+
+/* ---------- theme toggle ---------- */
+(function(){
+  const btn = $("#themebtn");
+  const sysDark = matchMedia("(prefers-color-scheme: dark)");
+  let stored = null;
+  try { stored = localStorage.getItem("dash-theme"); } catch (e) {}
+  if (stored) document.documentElement.setAttribute("data-theme", stored);
+  const isDark = () => (document.documentElement.getAttribute("data-theme")
+    || (sysDark.matches ? "dark" : "light")) === "dark";
+  const sync = () => { btn.textContent = isDark() ? "Light mode" : "Dark mode"; };
+  btn.addEventListener("click", () => {
+    const next = isDark() ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("dash-theme", next); } catch (e) {}
+    sync();
+  });
+  sysDark.addEventListener("change", sync);
+  sync();
+})();
+
+[kpis, verdict, obj1, obj2, obj3, obj4, confusion, operational, corpus]
+  .forEach(fn => { try { fn(); } catch (e) { console.error(fn.name, e); } });
+</script>
+</body>
+</html>

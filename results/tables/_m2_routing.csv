@@ -1,0 +1,2 @@
+Task,Model,Accuracy,Precision (macro),Recall (macro),F1 (macro),F1 (weighted),Correct-routing rate,Arm,Head,Feature set,Dimensions,Block weight,CV F1 (macro),Best params,Fit time (s)
+Resolver routing,B: Linear SVM + context,0.7294,0.6702,0.722,0.6888,0.6985,0.7294,B (task-specific),Linear SVM,+ predicted-category context,418,0.1,0.7098,"{""C"": 1.0}",13.2

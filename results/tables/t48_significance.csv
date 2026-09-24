@@ -1,0 +1,4 @@
+Task,Test,A right / B wrong (b),A wrong / B right (c),p-value,Significant at .05,Favours
+Ticket classification,McNemar (exact),27,6,0.00032,Yes,Arm A (end-to-end)
+Resolver routing,McNemar (exact),42,24,0.03558,Yes,Arm A (end-to-end)
+Resolution recommendation (Top-1 hit),McNemar (exact),19,52,0.00011,Yes,Arm B (task-specific)

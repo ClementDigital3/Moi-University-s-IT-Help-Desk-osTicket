@@ -1,0 +1,7 @@
+Screening step,Records removed,Records remaining,Retention %
+Raw records extracted,0,4896,100.0
+Test / placeholder tickets removed,48,4848,99.0
+Exact duplicate submissions removed,96,4752,97.1
+Records with no usable free text removed,7,4745,96.9
+Records with missing category label removed,52,4693,95.9
+Records with no assigned resolver removed,76,4617,94.3

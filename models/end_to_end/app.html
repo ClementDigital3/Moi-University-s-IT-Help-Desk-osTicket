@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ICT Help Desk Triage</title>
+<style>
+  :root{
+    --bg:#f4f6fa; --panel:#ffffff; --ink:#15213a; --muted:#5b6880;
+    --line:#dde3ee; --accent:#1f3864; --accent2:#4c72b0; --warm:#dd8452;
+    --good:#2e7d5b; --shadow:0 1px 3px rgba(21,33,58,.07),0 5px 16px rgba(21,33,58,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+
+  /* Fixed frame: the header stays put and each column scrolls on its own, so a
+     long result never pushes the input out of reach and the left column never
+     leaves a growing void beside the results. */
+  .app{display:flex;flex-direction:column;height:100%;
+    max-width:1340px;margin:0 auto;padding:12px 16px 8px}
+  .cols{flex:1;display:grid;grid-template-columns:352px minmax(0,1fr);
+    gap:14px;min-height:0}
+  .pane{min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:2px;
+    scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .pane::-webkit-scrollbar{width:9px}
+  .pane::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px}
+  .pane::-webkit-scrollbar-track{background:transparent}
+
+  /* Short or narrow viewports fall back to ordinary document flow. */
+  @media (max-width:880px),(max-height:600px){
+    html,body{height:auto}
+    .app{height:auto;padding-bottom:36px}
+    .cols{grid-template-columns:1fr;min-height:0}
+    .pane{overflow:visible;min-height:auto}
+  }
+
+  /* ---- compact header: one band, not a quarter of the screen ---- */
+  .bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:11px}
+  .nav{display:inline-flex;gap:3px;background:#eef2f9;border:1px solid var(--line);
+    border-radius:9px;padding:3px;flex:none}
+  .nav a{font-size:13px;font-weight:600;text-decoration:none;color:var(--muted);
+    padding:5px 12px;border-radius:7px;line-height:1.3}
+  .nav a:hover{background:#e2e9f6;color:var(--accent)}
+  .nav a[aria-current="page"]{background:var(--accent);color:#fff}
+  .brand{display:flex;align-items:baseline;gap:9px;min-width:0;flex:1 1 auto}
+  h1{margin:0;font-size:19px;letter-spacing:-.02em;white-space:nowrap}
+  .sub{color:var(--muted);font-size:12.8px;min-width:0;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .badge{background:#fff5ec;color:#a65a24;border:1px solid #f2d6bd;border-radius:999px;
+    padding:3px 11px;font-size:12px;font-weight:650;flex:none;white-space:nowrap}
+  @media (max-width:1080px){.sub{display:none}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    padding:15px;box-shadow:var(--shadow)}
+  .card + .card{margin-top:12px}
+  .card h2{margin:0 0 11px;font-size:11.5px;text-transform:uppercase;
+    letter-spacing:.09em;color:var(--muted)}
+
+  label{display:block;font-size:12.5px;font-weight:650;margin:10px 0 4px;color:var(--muted)}
+  form label:first-of-type{margin-top:0}
+  input[type=text],textarea{width:100%;padding:9px 11px;border:1px solid var(--line);
+    border-radius:8px;font:inherit;font-size:14.5px;background:#fcfdff;color:var(--ink);resize:vertical}
+  input[type=text]:focus,textarea:focus{outline:2px solid var(--accent2);outline-offset:-1px}
+  textarea{min-height:96px}
+
+  button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid transparent}
+  .go{width:100%;margin-top:13px;padding:10px 16px;background:var(--accent);color:#fff;
+    font-weight:650;font-size:15px}
+  .go:hover{background:#182c50}
+  .go:disabled{opacity:.6;cursor:progress}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+  .chip{padding:5px 10px;font-size:12.5px;background:#eef2f9;border:1px solid var(--line);color:var(--accent)}
+  .chip:hover{background:#e2e9f6}
+
+  .empty{color:var(--muted);text-align:center;padding:40px 18px;font-size:14.5px}
+  /* the waiting state fills its pane, so it reads as a canvas awaiting input
+     rather than a card stranded at the top of an empty column */
+  .fill{height:100%;display:flex;align-items:center;justify-content:center}
+  @media (max-width:880px),(max-height:600px){.fill{height:auto}}
+  .err{background:#fdeeee;border:1px solid #f4cccc;color:#8c2b2b;padding:11px 13px;border-radius:8px}
+
+  /* ---- decisions: tightened so both fit above the fold ---- */
+  .decision{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fcfdff}
+  .decision + .decision{margin-top:10px}
+  .dhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .dtask{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+  .drule{font-size:11.5px;color:var(--muted)}
+  .dlabel{font-size:20px;font-weight:680;margin:5px 0 0;letter-spacing:-.015em;line-height:1.2}
+  .bar2{height:8px;background:#e8edf6;border-radius:99px;overflow:hidden;margin:7px 0 5px}
+  .bar2>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:99px}
+  .dmeta{font-size:12.4px;color:var(--muted)}
+  .dmeta b{color:var(--ink);font-weight:640}
+  .branches{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px;padding-top:9px;border-top:1px dashed var(--line)}
+  .bvote{font-size:11.8px;padding:3px 8px;border-radius:6px;background:#f1f4fa;
+    border:1px solid var(--line);color:var(--muted)}
+  .bvote.agree{background:#eaf5f0;border-color:#c5e3d5;color:var(--good)}
+  .bvote b{font-weight:640}
+
+  table{width:100%;border-collapse:collapse;font-size:13.2px}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.07em;
+    color:var(--muted);padding:0 9px 7px;border-bottom:1px solid var(--line);font-weight:700}
+  td{padding:9px;border-bottom:1px solid #eef1f7;vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .tid{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--muted);white-space:nowrap}
+  .sim{font-variant-numeric:tabular-nums;font-weight:650;color:var(--accent);white-space:nowrap}
+  .sim.weak{color:var(--warm)}
+  .res{color:var(--muted);font-size:12.7px;margin-top:2px}
+  .tag{display:inline-block;font-size:11px;background:#eef2f9;color:var(--accent);
+    border-radius:5px;padding:1px 6px;margin-right:4px}
+  .weakbar{background:#fff6ee;border:1px solid #f2d9c2;color:#8a4f21;
+    border-radius:8px;padding:9px 12px;margin-bottom:11px;font-size:12.8px;line-height:1.5}
+  .weakbar b{font-variant-numeric:tabular-nums}
+
+  .foot{margin-top:9px;color:var(--muted);font-size:11.6px;line-height:1.5;flex:none}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="bar">
+    <nav class="nav" aria-label="Views">
+      <a href="/" aria-current="page">Live triage</a>
+      <a href="/dashboard">Evidence dashboard</a>
+    </nav>
+    <div class="brand">
+      <h1>ICT Help Desk Triage</h1>
+      <span class="sub">End-to-end model &mdash; one shared representation makes all three decisions.</span>
+    </div>
+    <span class="badge">Research prototype &middot; Moi University ICT Directorate</span>
+  </div>
+
+  <main class="cols">
+    <aside class="pane">
+      <div class="card">
+        <h2>Incoming ticket</h2>
+        <form id="f">
+          <label for="subject">Subject</label>
+          <input type="text" id="subject" placeholder="Cannot access elearning portal" autocomplete="off">
+          <label for="description">Description</label>
+          <textarea id="description" placeholder="Describe the problem as a user would write it&hellip;"></textarea>
+          <button class="go" id="go" type="submit">Classify ticket</button>
+        </form>
+        <label style="margin-top:14px">Try an example</label>
+        <div class="chips" id="chips"></div>
+      </div>
+    </aside>
+
+    <section class="pane" id="out">
+      <div class="card fill"><div class="empty">
+        Enter a ticket, or pick an example, to see how the model triages it.
+      </div></div>
+    </section>
+  </main>
+
+  <div class="foot">
+    Five classifiers (Table&nbsp;3.2) over one shared TF-IDF representation, combined by vote,
+    with cosine retrieval over resolved tickets; fitted on the training partition only.
+    Figures come from a corpus built to the authorised export's field specification,
+    pending institutional data-access approval &mdash; they demonstrate model behaviour, not
+    measured help desk performance.
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pct = v => (v * 100).toFixed(1) + "%";
+
+fetch("/api/examples").then(r => r.json()).then(xs => {
+  $("#chips").innerHTML = xs.map((x, i) =>
+    `<button class="chip" type="button" data-i="${i}">${esc(x.label)}</button>`).join("");
+  $("#chips").addEventListener("click", e => {
+    const b = e.target.closest(".chip"); if (!b) return;
+    const x = xs[+b.dataset.i];
+    $("#subject").value = x.subject;
+    $("#description").value = x.description;
+    $("#f").requestSubmit();
+  });
+}).catch(() => {});
+
+function decision(task, d){
+  const votes = d.branches.map(b => {
+    const agree = b.label === d.label;
+    return `<span class="bvote ${agree ? "agree" : ""}">${esc(b.model)}:
+      <b>${esc(b.label)}</b></span>`;
+  }).join("");
+  return `<div class="decision">
+    <div class="dhead">
+      <span class="dtask">${esc(task)}</span>
+      <span class="drule">${esc(d.rule)} vote &middot; ${d.agreement * 100}% of branches agree</span>
+    </div>
+    <div class="dlabel">${esc(d.label)}</div>
+    <div class="bar2"><i style="width:${Math.max(2, d.confidence * 100)}%"></i></div>
+    <div class="dmeta">confidence <b>${pct(d.confidence)}</b>
+      &nbsp;&middot;&nbsp; next best: ${esc(d.runner_up)} (${pct(d.runner_up_confidence)})</div>
+    <div class="branches">${votes}</div>
+  </div>`;
+}
+
+function similar(rows, meta){
+  if (!rows || !rows.length) return "";
+  const warn = meta && !meta.strong_match ? `<div class="weakbar">
+      No closely matching ticket in the archive &mdash; best match scored
+      <b>${meta.top_similarity.toFixed(3)}</b>, below the ${meta.threshold.toFixed(2)}
+      threshold. Treat these as loose suggestions.
+    </div>` : "";
+  return `<div class="card">
+    <h2>Similar resolved tickets &mdash; what worked before</h2>
+    ${warn}
+    <table><thead><tr>
+      <th style="width:92px">Ticket</th><th>Problem &amp; resolution</th><th style="width:66px">Match</th>
+    </tr></thead><tbody>
+    ${rows.map(r => `<tr>
+      <td class="tid">${esc(r.ticket_id)}</td>
+      <td>
+        <div><span class="tag">${esc(r.category)}</span><span class="tag">${esc(r.team)}</span></div>
+        <div style="font-weight:600;margin-top:3px">${esc(r.subject)}</div>
+        <div class="res">${esc(r.resolution)}</div>
+      </td>
+      <td class="sim ${r.weak ? "weak" : ""}">${r.similarity.toFixed(3)}</td>
+    </tr>`).join("")}
+    </tbody></table></div>`;
+}
+
+function render(d){
+  const out = $("#out");
+  if (!d || d.error) {
+    out.innerHTML = `<div class="card"><div class="err">${esc(d && d.error || "No result")}</div></div>`;
+    return;
+  }
+  const cards = Object.entries(d.tasks).map(([t, v]) => decision(t, v)).join("");
+  out.innerHTML = `<div class="card"><h2>Triage decision</h2>${cards}</div>`
+                + similar(d.similar, d.retrieval);
+  out.scrollTop = 0;
+}
+
+// Prefill and auto-run from the URL, so a demo case can be bookmarked or
+// dropped straight into a presentation:  /?subject=...&description=...
+(function(){
+  const q = new URLSearchParams(location.search);
+  if (!q.has("subject") && !q.has("description")) return;
+  $("#subject").value = q.get("subject") || "";
+  $("#description").value = q.get("description") || "";
+  // The server already scored it and injected the result, so render straight
+  // away; fall back to a normal request if the injection is absent.
+  if (window.__PRELOAD__) render(window.__PRELOAD__);
+  else $("#f").requestSubmit();
+})();
+
+$("#f").addEventListener("submit", async e => {
+  e.preventDefault();
+  const go = $("#go");
+  go.disabled = true; go.textContent = "Scoring…";
+  try {
+    const res = await fetch("/api/predict", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({subject: $("#subject").value, description: $("#description").value})
+    });
+    render(await res.json());
+  } catch (err) {
+    $("#out").innerHTML = `<div class="card"><div class="err">${esc(err)}</div></div>`;
+  } finally {
+    go.disabled = false; go.textContent = "Classify ticket";
+  }
+});
+</script>
+</body>
+</html>

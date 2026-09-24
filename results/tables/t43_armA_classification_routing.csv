@@ -1,0 +1,17 @@
+Task,Model,Accuracy,Precision (macro),Recall (macro),F1 (macro),F1 (weighted),Arm,Role,CV F1 (macro),Fit time (s),Correct-routing rate
+Resolver routing,Multinomial Naive Bayes,0.7522,0.6876,0.7368,0.7046,0.7135,A (branch),individual,0.7076,0.4,0.7522
+Resolver routing,Linear SVM,0.7543,0.6899,0.735,0.7038,0.7149,A (branch),individual,0.7035,3.8,0.7543
+Resolver routing,Logistic Regression,0.7197,0.6847,0.7168,0.698,0.7035,A (branch),individual,0.7096,9.1,0.7197
+Resolver routing,COMBINED (majority vote),0.7489,0.6702,0.7317,0.6958,0.707,A (combined),ensemble,,0.0,0.7489
+Resolver routing,Random Forest,0.7478,0.6704,0.7289,0.6909,0.7025,A (branch),individual,0.6964,30.4,0.7478
+Resolver routing,COMBINED (soft vote),0.7446,0.6585,0.7273,0.6902,0.7016,A (combined),ensemble,,0.0,0.7446
+Resolver routing,COMBINED (weighted vote),0.7446,0.6585,0.7273,0.6902,0.7016,A (combined),ensemble,,0.0,0.7446
+Resolver routing,XGBoost,0.7132,0.6618,0.6969,0.675,0.6854,A (branch),individual,0.6847,170.5,0.7132
+Ticket classification,COMBINED (soft vote),0.9058,0.91,0.8942,0.9009,0.9053,A (combined),ensemble,,0.0,
+Ticket classification,COMBINED (weighted vote),0.9058,0.91,0.8942,0.9009,0.9053,A (combined),ensemble,,0.0,
+Ticket classification,Linear SVM,0.9048,0.9073,0.893,0.899,0.9042,A (branch),individual,0.8973,2.7,
+Ticket classification,Multinomial Naive Bayes,0.9015,0.9055,0.89,0.8966,0.901,A (branch),individual,0.9004,3.8,
+Ticket classification,COMBINED (majority vote),0.9004,0.9028,0.8892,0.8949,0.9,A (combined),ensemble,,0.0,
+Ticket classification,Random Forest,0.8929,0.8993,0.881,0.8885,0.8923,A (branch),individual,0.8914,18.6,
+Ticket classification,Logistic Regression,0.8929,0.8878,0.8838,0.8852,0.8926,A (branch),individual,0.8947,4.9,
+Ticket classification,XGBoost,0.8755,0.8781,0.8646,0.8701,0.8751,A (branch),individual,0.8814,261.6,

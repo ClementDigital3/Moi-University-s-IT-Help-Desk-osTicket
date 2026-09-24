@@ -1,0 +1,3 @@
+Task,Arm A best single branch,Branch macro F1,Arm A combined macro F1,Combining gain,Arm B macro F1,Arm B head,Arm B feature set
+Ticket classification,Linear SVM,0.899,0.9009,0.0019,0.8793,k-NN (cosine),+ text-shape context
+Resolver routing,Multinomial Naive Bayes,0.7046,0.6958,-0.0088,0.6888,Linear SVM,+ predicted-category context

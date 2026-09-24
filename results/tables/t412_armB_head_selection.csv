@@ -1,0 +1,11 @@
+Task,Head,CV F1 (macro),Best params,Tune time (s)
+Ticket classification,Logistic Regression,0.882,"{""C"": 3.0}",18.6
+Ticket classification,Linear SVM,0.8872,"{""C"": 0.3}",10.2
+Ticket classification,Random Forest,0.8715,"{""min_samples_leaf"": 2}",66.3
+Ticket classification,XGBoost,0.8759,fixed (see heads() docstring),292.2
+Ticket classification,k-NN (cosine),0.8878,"{""n_neighbors"": 15}",28.3
+Resolver routing,Logistic Regression,0.7001,"{""C"": 1.0}",7.0
+Resolver routing,Linear SVM,0.7006,"{""C"": 1.0}",13.7
+Resolver routing,Random Forest,0.6728,"{""min_samples_leaf"": 2}",86.7
+Resolver routing,XGBoost,0.6853,fixed (see heads() docstring),979.0
+Resolver routing,k-NN (cosine),0.6914,"{""n_neighbors"": 10}",24.5

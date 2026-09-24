@@ -1,0 +1,5 @@
+Task,Representation,Head,Dimensions,CV F1 (macro)
+Ticket classification,Contextual sentence embedding,k-NN (cosine),384,0.8804
+Ticket classification,Lexical TF-IDF → LSA,k-NN (cosine),300,0.8158
+Resolver routing,Contextual sentence embedding,Linear SVM,384,0.7006
+Resolver routing,Lexical TF-IDF → LSA,Linear SVM,300,0.7028

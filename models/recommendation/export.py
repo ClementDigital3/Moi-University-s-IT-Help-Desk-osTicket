@@ -1,5 +1,5 @@
 """
-Persist model 3 for serving.
+Persist Arm B model B3 for serving.
 
 Saves the semantic index over resolved tickets, the lexical channel, the blend
 weight the evaluation chose, and the records themselves so the prototype can
@@ -29,7 +29,7 @@ def main():
     t0 = time.time()
     _, meta = load_artifact("recommendation")
     w = meta["blend_w_semantic"]
-    print(f"deploying model 3: {meta['best_variant']} · blend w_semantic={w}")
+    print(f"deploying B3: {meta['best_variant']} · blend w_semantic={w}")
 
     tr, te, _ = load_splits()
     E_tr, _, enc_name, dim, _ = build_embeddings(tr, te)

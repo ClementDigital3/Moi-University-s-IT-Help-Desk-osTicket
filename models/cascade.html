@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Arm B — Cascade</title>
+<title>Arm B — The cascade</title>
 <style>
   :root{
     --bg:#f4f6fa; --panel:#ffffff; --ink:#15213a; --muted:#5b6880;
@@ -30,6 +30,9 @@
   .nav{flex-wrap:wrap}
   .nav a{font-size:12.5px;font-weight:600;text-decoration:none;color:var(--muted);
     padding:5px 12px;border-radius:7px}
+  .ngroup{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;
+    font-weight:750;color:var(--muted);padding:0 6px 0 7px;align-self:center}
+  .ndiv{width:1px;align-self:stretch;background:var(--line);margin:3px 5px}
   .nav a:hover{background:#e2e9f6;color:var(--accent)}
   .nav a[aria-current="page"]{background:var(--accent);color:#fff}
   .brand{display:flex;align-items:baseline;gap:9px;min-width:0;flex:1 1 auto}
@@ -114,16 +117,20 @@
 <div class="app">
   <div class="bar">
     <nav class="nav" aria-label="Views">
-      <a href="/">Triage</a>
-      <a href="/classification">Classification</a>
-      <a href="/routing">Routing</a>
-      <a href="/recommendation">Recommendation</a>
+      <span class="ngroup">Arm A</span>
+      <a href="/">End-to-end</a>
+      <span class="ndiv"></span>
+      <span class="ngroup">Arm B</span>
+      <a href="/classification">B1 Category</a>
+      <a href="/routing">B2 Routing</a>
+      <a href="/recommendation">B3 Resolutions</a>
       <a href="/cascade" aria-current="page">Cascade</a>
-      <a href="/dashboard">Dashboard</a>
+      <span class="ndiv"></span>
+      <a href="/dashboard">Findings</a>
     </nav>
     <div class="brand">
       <h1>Arm B — Cascade</h1>
-      <span class="sub">Three dedicated models, each feeding the next.</span>
+      <span class="sub">B1, B2 and B3 chained &mdash; each feeding the next.</span>
     </div>
     <span class="badge">Research prototype &middot; Moi University ICT Directorate</span>
   </div>
@@ -195,19 +202,19 @@ function render(d){
 
   const s1 = `<div class="stage">
     <div class="shead"><span class="num">1</span>
-      <span class="sname">Category &middot; model 1</span>
+      <span class="sname">Category &middot; B1</span>
       <span class="smodel">${esc(c.model)}</span></div>
     <div class="dlabel">${esc(c.label)}</div>
     <div class="bar2"><i style="width:${Math.max(2, c.confidence * 100)}%"></i></div>
     <div class="dmeta">confidence <b>${pct(c.confidence)}</b> &middot; next best:
       ${esc(c.runner_up)} (${pct(c.runner_up_confidence)})</div>
-    <span class="feeds">&darr; feeds its full distribution to model 2, its label to model 3</span>
+    <span class="feeds">&darr; feeds its full distribution to B2, its label to B3</span>
   </div>`;
 
   const margin = r.score_type === "margin";
   const s2 = `<div class="stage">
     <div class="shead"><span class="num">2</span>
-      <span class="sname">Resolver team &middot; model 2</span>
+      <span class="sname">Resolver team &middot; B2</span>
       <span class="smodel">${esc(r.model)}</span></div>
     <div class="dlabel">${esc(r.label)}</div>
     ${ranked(r.ranked, 3)}
@@ -223,11 +230,11 @@ function render(d){
     </div>` : "";
   const s3 = `<div class="stage">
     <div class="shead"><span class="num">3</span>
-      <span class="sname">Prior resolutions &middot; model 3</span>
+      <span class="sname">Prior resolutions &middot; B3</span>
       <span class="smodel">${esc(x.variant)}</span></div>
     ${x.category_filtered
       ? `<div class="hint" style="margin:0 0 8px">Candidates narrowed to
-         <b>${esc(c.label)}</b> — the category model 1 predicted.</div>` : ""}
+         <b>${esc(c.label)}</b> — the category B1 predicted.</div>` : ""}
     ${warn}
     <table><thead><tr><th style="width:92px">Ticket</th>
       <th>Problem &amp; resolution</th><th style="width:66px">Match</th></tr></thead><tbody>

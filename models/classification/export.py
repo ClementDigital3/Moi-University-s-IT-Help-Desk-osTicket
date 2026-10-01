@@ -1,5 +1,5 @@
 """
-Persist model 1 for serving.
+Persist Arm B model B1 for serving.
 
 run.py evaluates and throws the fitted objects away. This keeps them, so the
 prototype scores a typed ticket with exactly the model the evaluation reported
@@ -38,7 +38,7 @@ def main():
     _, meta = load_artifact("classification")
     head_name, feat, alpha = meta["head"], meta["feature_set"], meta["block_weight"]
     keys = KEYS_FOR[feat]
-    print(f"deploying model 1: {head_name} · {feat} · weight {alpha}")
+    print(f"deploying B1: {head_name} · {feat} · weight {alpha}")
 
     tr, te, _ = load_splits()
     E_tr, E_te, enc_name, dim, _ = build_embeddings(tr, te)

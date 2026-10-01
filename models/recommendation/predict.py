@@ -1,7 +1,7 @@
 """
-Inference for model 3 — rank resolved tickets by similarity.
+Inference for Arm B model B3 — rank resolved tickets by similarity.
 
-`category` narrows the candidates to what model 1 predicted, which is the
+`category` narrows the candidates to what B1 predicted, which is the
 context-aware variant the evaluation selected. Pass None to retrieve over the
 whole archive.
 """

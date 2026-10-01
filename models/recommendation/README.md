@@ -1,7 +1,7 @@
-# Model 3 — Historical-resolution recommendation
+# Arm B · B3 — Historical-resolution recommendation
 
 Ranks previously resolved tickets by similarity so a resolver can reuse what
-worked. Thesis calls this **B3**. Needs model 1 for the category filter.
+worked. Needs **B1** for the category filter.
 
 ```bash
 make m1 && make m3
@@ -41,7 +41,7 @@ Shows the matched tickets with their resolutions, and the category filter applie
 make export && make demo     # then http://127.0.0.1:8000/recommendation
 ```
 
-`predict()` takes model 1's predicted `category` to narrow candidates — the
+`predict()` takes B1's predicted `category` to narrow candidates — the
 variant the evaluation selected. Matches below similarity 0.50 are flagged weak
 and the interface says when the archive has no close precedent.
 

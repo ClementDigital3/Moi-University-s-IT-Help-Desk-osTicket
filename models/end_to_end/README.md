@@ -1,7 +1,7 @@
-# The end-to-end model
+# Arm A — The end-to-end model
 
 One model, one representation, every decision — the baseline Arm B is measured
-against. Thesis calls this **Arm A**.
+against.
 
 ```bash
 make end2end    # evaluate

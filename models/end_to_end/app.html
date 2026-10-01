@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ICT Help Desk Triage</title>
+<title>Arm A — End-to-end model</title>
 <style>
   :root{
     --bg:#f4f6fa; --panel:#ffffff; --ink:#15213a; --muted:#5b6880;
@@ -43,6 +43,9 @@
   .nav{flex-wrap:wrap}
   .nav a{font-size:12.5px;font-weight:600;text-decoration:none;color:var(--muted);
     padding:5px 12px;border-radius:7px;line-height:1.3}
+  .ngroup{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;
+    font-weight:750;color:var(--muted);padding:0 6px 0 7px;align-self:center}
+  .ndiv{width:1px;align-self:stretch;background:var(--line);margin:3px 5px}
   .nav a:hover{background:#e2e9f6;color:var(--accent)}
   .nav a[aria-current="page"]{background:var(--accent);color:#fff}
   .brand{display:flex;align-items:baseline;gap:9px;min-width:0;flex:1 1 auto}
@@ -123,16 +126,20 @@
 
   <div class="bar">
     <nav class="nav" aria-label="Views">
-      <a href="/" aria-current="page">Triage</a>
-      <a href="/classification">Classification</a>
-      <a href="/routing">Routing</a>
-      <a href="/recommendation">Recommendation</a>
+      <span class="ngroup">Arm A</span>
+      <a href="/" aria-current="page">End-to-end</a>
+      <span class="ndiv"></span>
+      <span class="ngroup">Arm B</span>
+      <a href="/classification">B1 Category</a>
+      <a href="/routing">B2 Routing</a>
+      <a href="/recommendation">B3 Resolutions</a>
       <a href="/cascade">Cascade</a>
-      <a href="/dashboard">Dashboard</a>
+      <span class="ndiv"></span>
+      <a href="/dashboard">Findings</a>
     </nav>
     <div class="brand">
-      <h1>ICT Help Desk Triage</h1>
-      <span class="sub">End-to-end model &mdash; one shared representation makes all three decisions.</span>
+      <h1>Arm A &mdash; End-to-end model</h1>
+      <span class="sub">One shared representation, one combined vote, all three decisions.</span>
     </div>
     <span class="badge">Research prototype &middot; Moi University ICT Directorate</span>
   </div>

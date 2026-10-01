@@ -1,5 +1,5 @@
 """
-THE END-TO-END MODEL, with the individual classifiers as branches.
+ARM A -- the end-to-end model, with the individual classifiers as branches.
 
 Design
 ------

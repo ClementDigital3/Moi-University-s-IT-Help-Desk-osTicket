@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Findings — ICT Help Desk Ticket Management</title>
+<title>Findings — Arm A versus Arm B</title>
 <style>
   :root{
     color-scheme: light;
@@ -48,6 +48,9 @@
     border:1px solid var(--border);border-radius:9px;padding:3px}
   .nav a{font-size:12.5px;font-weight:600;text-decoration:none;color:var(--text-secondary);
     padding:5px 10px;border-radius:7px;white-space:nowrap}
+  .ngroup{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;
+    font-weight:750;color:var(--text-muted);padding:0 6px 0 7px;align-self:center}
+  .ndiv{width:1px;align-self:stretch;background:var(--border);margin:3px 5px}
   .nav a:hover{background:var(--plane)}
   .nav a[aria-current="page"]{background:var(--text-primary);color:var(--surface-1)}
   .spacer{flex:1}
@@ -179,11 +182,15 @@
 
 <div class="top">
   <nav class="nav" aria-label="Views">
-    <a href="/">Triage</a>
-    <a href="/classification">Classification</a>
-    <a href="/routing">Routing</a>
-    <a href="/recommendation">Recommendation</a>
+    <span class="ngroup">Arm A</span>
+    <a href="/">End-to-end</a>
+    <span class="ndiv"></span>
+    <span class="ngroup">Arm B</span>
+    <a href="/classification">B1 Category</a>
+    <a href="/routing">B2 Routing</a>
+    <a href="/recommendation">B3 Resolutions</a>
     <a href="/cascade">Cascade</a>
+    <span class="ndiv"></span>
     <a href="/dashboard" aria-current="page">Findings</a>
   </nav>
   <span class="spacer"></span>

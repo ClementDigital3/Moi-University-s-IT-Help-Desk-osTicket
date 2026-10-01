@@ -1,7 +1,7 @@
 """
-Inference for model 2 — resolver team, conditioned on model 1's category.
+Inference for Arm B model B2 — resolver team, conditioned on B1's category.
 
-`category` is model 1's probability vector. Pass it in rather than recomputing:
+`category` is B1's probability vector. Pass it in rather than recomputing:
 the cascade is the architecture, and making the dependency explicit keeps it
 visible instead of hidden inside this function.
 """
@@ -30,7 +30,7 @@ def predict(subject="", description="", department="", category=None,
     extra = None
     if b["needs_category"]:
         if category is None:
-            raise ValueError("this model is cascaded: pass model 1's proba_vector "
+            raise ValueError("this model is cascaded: pass B1's proba_vector "
                              "as `category`")
         extra = {"cat": np.asarray(category, dtype=float).reshape(1, -1)}
     X = features_for(f, b, extra=extra)

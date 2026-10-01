@@ -29,6 +29,9 @@
     border-radius:9px;padding:3px;flex:none;flex-wrap:wrap}
   .nav a{font-size:12.5px;font-weight:600;text-decoration:none;color:var(--muted);
     padding:5px 10px;border-radius:7px;white-space:nowrap}
+  .ngroup{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;
+    font-weight:750;color:var(--muted);padding:0 6px 0 7px;align-self:center}
+  .ndiv{width:1px;align-self:stretch;background:var(--line);margin:3px 5px}
   .nav a:hover{background:#e2e9f6;color:var(--accent)}
   .nav a[aria-current="page"]{background:var(--accent);color:#fff}
   .brand{display:flex;align-items:baseline;gap:9px;min-width:0;flex:1 1 auto}
@@ -114,12 +117,16 @@
 <div class="app">
   <div class="bar">
     <nav class="nav" id="nav" aria-label="Views">
-      <a href="/">Triage</a>
-      <a href="/classification" data-m="classification">Classification</a>
-      <a href="/routing" data-m="routing">Routing</a>
-      <a href="/recommendation" data-m="recommendation">Recommendation</a>
+      <span class="ngroup">Arm A</span>
+      <a href="/">End-to-end</a>
+      <span class="ndiv"></span>
+      <span class="ngroup">Arm B</span>
+      <a href="/classification" data-m="classification">B1 Category</a>
+      <a href="/routing" data-m="routing">B2 Routing</a>
+      <a href="/recommendation" data-m="recommendation">B3 Resolutions</a>
       <a href="/cascade">Cascade</a>
-      <a href="/dashboard">Dashboard</a>
+      <span class="ndiv"></span>
+      <a href="/dashboard">Findings</a>
     </nav>
     <div class="brand"><h1 id="title">Model</h1><span class="sub" id="subtitle"></span></div>
     <span class="badge">Research prototype &middot; Moi University ICT Directorate</span>
@@ -171,9 +178,9 @@ document.querySelectorAll("#nav a[data-m]").forEach(a => {
 fetch(`/api/card/${MODEL}`).then(r => r.json()).then(c => {
   if (c.error) { $("#mcard").innerHTML =
     `<h2>The model</h2><div class="err">${esc(c.error)}</div>`; return; }
-  document.title = `${c.name} — Arm B`;
-  $("#title").textContent = c.name;
-  $("#subtitle").textContent = `${c.thesis} · ${c.objective}`;
+  document.title = `Arm B ${c.thesis} — ${c.name}`;
+  $("#title").textContent = `${c.thesis} — ${c.name}`;
+  $("#subtitle").textContent = `Arm B · ${c.objective}`;
   $("#mcard").innerHTML = `<h2>The model</h2>
     <dl>
       <dt>Approach</dt><dd>${esc(c.head)}</dd>
@@ -208,7 +215,7 @@ function ranked(rows, n, max){
     </div>`).join("");
 }
 const upstreamStrip = u => u ? `<div class="upstream">
-    Ran <b>model 1</b> first — this model is cascaded on it. Category:
+    Ran <b>B1</b> first — this model is cascaded on it. Category:
     <b>${esc(u.label)}</b> (${pct(u.confidence)}).
   </div>` : "";
 
@@ -259,7 +266,7 @@ const RENDER = {
       ${upstreamStrip(d.upstream)}
       <h2>Most similar resolved tickets</h2>
       ${x.category_filtered ? `<div class="hint" style="margin:0 0 10px">Candidates
-        narrowed to <b>${esc(d.upstream.label)}</b> — the category model 1 predicted.</div>` : ""}
+        narrowed to <b>${esc(d.upstream.label)}</b> — the category B1 predicted.</div>` : ""}
       ${warn}
       <table><thead><tr><th style="width:92px">Ticket</th>
         <th>Problem &amp; resolution</th><th style="width:66px">Match</th></tr></thead><tbody>

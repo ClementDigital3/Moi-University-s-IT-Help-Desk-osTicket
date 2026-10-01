@@ -1,12 +1,12 @@
 """
-MODEL 3 -- Historical-resolution recommendation, semantic retrieval.
+ARM B, MODEL B3 -- Historical-resolution recommendation, semantic retrieval.
 
 Objective Four / RQ4. Referred to as B3 in Chapter Four.
 
     new ticket
         -> contextual sentence embedding
         -> ranked nearest resolved tickets, optionally narrowed by the category
-           model 1 predicted and optionally blended with a lexical channel
+           B1 predicted and optionally blended with a lexical channel
         -> the resolutions that were applied to them
 
 Unlike models 1 and 2 this is retrieval, not classification: it commits to no
@@ -20,7 +20,7 @@ Relevant a retrieved ticket sharing the query's underlying problem.
 Four variants are evaluated, and the blend weight is chosen by leave-one-out
 retrieval on the TRAINING corpus, never on the held-out queries.
 
-Run:  .venv/bin/python -m models.recommendation.run   (requires model 1 to have run)
+Run:  .venv/bin/python -m models.recommendation.run   (requires B1 to have run)
 Outputs:
     results/artifacts/recommendation.npz
     results/tables/t413_recommendation_variants.csv, _m3_recommendation.csv
@@ -92,7 +92,7 @@ def main():
 
     up, up_meta = load_artifact("classification")
     pred_cat = up["test_pred"].astype(str)
-    print(f"  upstream: model 1 ({up_meta.get('head','?')}) supplies the category filter")
+    print(f"  upstream: B1 ({up_meta.get('head','?')}) supplies the category filter")
 
     keep = tr["res_clean"].fillna("").str.strip().values != ""
     corpus = tr[keep].reset_index(drop=True)

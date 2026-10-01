@@ -1,7 +1,7 @@
-# Model 2 — Resolver routing
+# Arm B · B2 — Resolver routing
 
-Assigns a ticket to one of 7 teams. Thesis calls this **B2**.
-Cascaded on model 1 — needs it to have run.
+Assigns a ticket to one of 7 resolver teams.
+Cascaded on **B1** — needs it to have run.
 
 ```bash
 make m1 && make m2
@@ -20,7 +20,7 @@ words. It's the most valuable context available:
 | + text-shape | 0.7025 | +0.0026 |
 | **+ predicted category** | **0.7098** | **+0.0073** |
 
-It consumes model 1's **out-of-fold** probabilities during training, never the
+It consumes B1's **out-of-fold** probabilities during training, never the
 true category. Breaking that inflates results silently — see NOTES.md.
 
 ## Current result
@@ -36,13 +36,13 @@ Chapter Five therefore recommends deploying it as a *ranked suggestion*.
 ## Prototype
 
 Its own page at `/routing`, plus the combined `/cascade` view.
-Shows all seven teams ranked, and names model 1 as the upstream it ran first.
+Shows all seven teams ranked, and names B1 as the upstream it ran first.
 
 ```bash
 make export && make demo     # then http://127.0.0.1:8000/routing
 ```
 
-`predict()` requires model 1's `proba_vector` as `category` — it raises rather
+`predict()` requires B1's `proba_vector` as `category` — it raises rather
 than silently guessing, because the cascade is the architecture.
 
 Linear SVM has no probabilities, so scores are **softmaxed margins**, labelled
@@ -54,6 +54,6 @@ recommends routing be a ranked suggestion anyway.
 
 - **Top-k routing** — return 2–3 teams with confidence instead of an argmax.
   This is what the thesis actually recommends and it isn't built yet.
-- **Joint model** — the cascade inherits model 1's error; optimising both
+- **Joint model** — the cascade inherits B1's error; optimising both
   together is the natural comparison
 - **Reassignment cost** — the corpus has a `Reassigned` field nothing uses

@@ -1,4 +1,4 @@
-"""Inference for model 1 — category from a typed ticket."""
+"""Inference for Arm B model B1 — category from a typed ticket."""
 import os
 import numpy as np
 import joblib
@@ -31,7 +31,7 @@ def predict(subject="", description="", department="", frame=None, bundle=None):
         "runner_up_confidence": round(float(probs[o[1]]), 4),
         "distribution": [{"label": classes[int(i)], "score": round(float(probs[i]), 4)}
                          for i in o],
-        "proba_vector": probs.reshape(1, -1),   # what model 2 consumes
+        "proba_vector": probs.reshape(1, -1),   # what B2 consumes
         "classes": classes,
         "model": f"{b['head']} · {b['feature_set']}",
         "score_type": kind,

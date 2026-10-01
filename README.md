@@ -7,8 +7,9 @@ past resolutions.
 - **Arm A — one end-to-end model.** One TF-IDF representation, five classifiers
   combined by vote, lexical retrieval. `models/end_to_end/`
 - **Arm B — three dedicated models,** each tuned separately on sentence
-  embeddings, routing conditioned on the predicted category.
-  `models/classification/`, `models/routing/`, `models/recommendation/`
+  embeddings, routing conditioned on the predicted category:
+  **B1** `models/classification/`, **B2** `models/routing/`,
+  **B3** `models/recommendation/`
 
 Both train and test on the same split, so comparisons are paired.
 
@@ -25,11 +26,11 @@ Three views, one server:
 
 | URL | Shows |
 |---|---|
-| `/` | Arm A — one model makes all three decisions |
-| `/classification` | Arm B model 1 on its own |
-| `/routing` | Arm B model 2 on its own |
-| `/recommendation` | Arm B model 3 on its own |
-| `/cascade` | all three chained, each feeding the next |
+| `/` | **Arm A** — one model makes all three decisions |
+| `/classification` | **Arm B · B1** — category, on its own |
+| `/routing` | **Arm B · B2** — resolver team, on its own |
+| `/recommendation` | **Arm B · B3** — prior resolutions, on its own |
+| `/cascade` | **Arm B** — B1 → B2 → B3 chained |
 | `/dashboard` | the findings, with a present mode (`P` or `?present`) |
 
 Each model page carries a model card — approach, features, representation and
@@ -50,7 +51,7 @@ ensemble wins classification, semantic representation wins retrieval.
 
 | Folder | What's in it |
 |---|---|
-| `models/` | the four models — one folder each, own README |
+| `models/` | Arm A and Arm B's B1–B3 — one folder each, own README |
 | `shared/` | data, representations, context blocks, classifiers, metrics |
 | `analysis/` | preprocessing, comparison, figures, chapters, dashboard |
 | `results/` | tables, figures, `dashboard.html` |

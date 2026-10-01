@@ -1,24 +1,24 @@
 """
-MODEL 2 -- Resolver routing, context-aware and cascaded.
+ARM B, MODEL B2 -- Resolver routing, context-aware and cascaded on B1.
 
 Objective Three / RQ3. Referred to as B2 in Chapter Four.
 
     ticket subject + description
         -> contextual sentence embedding
         +  department / temporal / text-shape context blocks
-        +  PREDICTED CATEGORY from model 1          <- the cascade
+        +  PREDICTED CATEGORY from B1          <- the cascade
         -> independently selected and tuned classifier head
         -> resolver team
 
 The cascade is what makes this model context-aware in the strong sense: routing
 is conditioned on what KIND of problem the ticket is, not only on its words. It
-consumes model 1's published artifact and never the true category -- training
+consumes B1's published artifact and never the true category -- training
 rows get out-of-fold category context, held-out rows get genuine predictions.
 
 Correct-routing rate (Table 3.3) is the proportion of tickets reaching the right
 resolver without reassignment; on a single-assignment task that is the accuracy.
 
-Run:  .venv/bin/python -m models.routing.run      (requires model 1 to have run)
+Run:  .venv/bin/python -m models.routing.run      (requires B1 to have run)
 Outputs:
     results/artifacts/routing.npz
     results/tables/_m2_*.csv, t4_armB_route_{perclass,confusion}.csv
@@ -55,15 +55,15 @@ def main():
     t_start = time.time()
 
     tr, te, meta = load_splits()
-    print(f"{'='*72}\nMODEL 2 -- {TASK} (context-aware, cascaded on model 1)\n{'='*72}")
+    print(f"{'='*72}\nMODEL 2 -- {TASK} (context-aware, cascaded on B1)\n{'='*72}")
     print(f"train={len(tr)}  test={len(te)}")
 
     E_tr, E_te, enc_name, dim, enc_s = build_embeddings(tr, te, args.encoder)
     blocks, fitter = build_blocks(tr, te, E_tr, E_te)
 
-    # ---- the cascade: model 1's category distribution becomes a context block
+    # ---- the cascade: B1's category distribution becomes a context block
     up, up_meta = load_artifact("classification")
-    print(f"  upstream: model 1 ({up_meta.get('head','?')}), "
+    print(f"  upstream: B1 ({up_meta.get('head','?')}), "
           f"out-of-fold category agreement {up_meta.get('oof_category_agreement','?')}")
     # scaling fitted on the OUT-OF-FOLD matrix, applied to held-out predictions
     blocks["cat"] = (fitter.fit_extra("cat", up["oof_proba"].astype(float)),

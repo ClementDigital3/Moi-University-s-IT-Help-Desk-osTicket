@@ -211,8 +211,8 @@ def run_model(name, subject, description):
 def cascade(subject, description):
     """
     Run Arm B's three models in their dependency order, keeping the hand-offs
-    visible: model 1 feeds its category distribution to model 2, and its
-    predicted label to model 3 as a retrieval filter.
+    visible: B1 feeds its category distribution to B2, and its
+    predicted label to B3 as a retrieval filter.
     """
     from shared.serving import ticket_frame
     from models.classification.predict import predict as p1
@@ -250,13 +250,15 @@ def main():
 
     url = f"http://{args.host}:{args.port}/"
     srv = ThreadingHTTPServer((args.host, args.port), Handler)
-    print(f"\n  ICT Help Desk triage prototype running at  {url}")
-    print(f"  Arm B cascade                              {url}cascade")
-    for r in MODEL_ROUTES:
-        print(f"    {r:40s} {url}{r.lstrip('/')}")
-    print(f"  evidence dashboard                         {url}dashboard"
-          + ("" if os.path.exists(DASHBOARD) else "   [not built yet]"))
-    print("  press Ctrl+C to stop\n")
+    print(f"\n  running at {url}\n")
+    print(f"    Arm A   end-to-end          {url}")
+    print(f"    Arm B   B1 category         {url}classification")
+    print(f"    Arm B   B2 routing          {url}routing")
+    print(f"    Arm B   B3 resolutions      {url}recommendation")
+    print(f"    Arm B   cascade             {url}cascade")
+    print(f"            findings            {url}dashboard"
+          + ("" if os.path.exists(DASHBOARD) else "   [not built - make dashboard]"))
+    print("\n  press Ctrl+C to stop\n")
     if args.open:
         webbrowser.open(url)
     try:

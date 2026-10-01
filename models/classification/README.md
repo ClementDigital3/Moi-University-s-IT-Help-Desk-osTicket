@@ -1,7 +1,7 @@
-# Model 1 — Ticket classification
+# Arm B · B1 — Ticket classification
 
-Assigns a ticket to one of 7 service categories. Thesis calls this **B1**.
-Head of the cascade: models 2 and 3 both consume what it publishes.
+Assigns a ticket to one of 7 service categories.
+Head of the cascade: **B2** and **B3** both consume what it publishes.
 
 ```bash
 make m1
@@ -35,7 +35,7 @@ make export && make demo     # then http://127.0.0.1:8000/classification
 
 `export.py` persists the head, the fitted `ContextFitter` and the selected
 feature set — read from the artifact, so it deploys exactly what was evaluated.
-`predict.py` scores one ticket and returns a `proba_vector` that model 2
+`predict.py` scores one ticket and returns a `proba_vector` that B2
 consumes.
 
 ## To extend

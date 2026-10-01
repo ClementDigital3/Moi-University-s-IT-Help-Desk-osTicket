@@ -1,6 +1,6 @@
 """
 Apply the agreed thesis revisions:
-  1. Objective 3 (Sec. 1.4.2)  -- state the specialist-vs-unified comparison
+  1. Objective 3 (Sec. 1.4.2)  -- state the Arm A vs Arm B comparison
   2. Research Question 3 (Sec. 1.5) -- match Objective 3
   3. Table 3.2 (Sec. 3.12)     -- add the integrated/unified candidate row
 

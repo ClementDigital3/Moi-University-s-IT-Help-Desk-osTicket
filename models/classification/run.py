@@ -1,5 +1,5 @@
 """
-MODEL 1 -- Ticket classification, context-aware.
+ARM B, MODEL B1 -- Ticket classification, context-aware.
 
 Objective Three / RQ3 (and it supplies the evidence for Objective One / RQ1).
 Referred to as B1 in Chapter Four.

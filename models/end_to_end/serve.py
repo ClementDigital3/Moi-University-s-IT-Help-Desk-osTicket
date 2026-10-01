@@ -21,6 +21,13 @@ from .predict import load, predict
 HERE = os.path.dirname(os.path.abspath(__file__))
 PAGE = os.path.join(HERE, "app.html")
 CASCADE_PAGE = os.path.join(ROOT, "models", "cascade.html")
+MODEL_PAGE = os.path.join(ROOT, "models", "model.html")
+
+# Each Arm B model gets its own page. They share one shell, parameterised by
+# name, because the pages differ in what they show -- not in how they are built.
+MODEL_ROUTES = {"/classification": "classification",
+                "/routing": "routing",
+                "/recommendation": "recommendation"}
 # The evidence dashboard is a standalone file, but serving it from here too
 # means the two views are one browsable prototype: no alt-tabbing to a file
 # manager mid-presentation. Read fresh per request so a rebuild shows up
@@ -111,13 +118,38 @@ class Handler(BaseHTTPRequestHandler):
                 html = html.replace(
                     "</head>", f"<script>window.__PRELOAD__={pre};</script></head>", 1)
             return self._send(200, html.encode("utf-8"), "text/html; charset=utf-8")
+        if path in MODEL_ROUTES:
+            name = MODEL_ROUTES[path]
+            with open(MODEL_PAGE, "r", encoding="utf-8") as f:
+                html = f.read()
+            inject = f"window.__MODEL__={json.dumps(name)};"
+            q = parse_qs(parsed.query)
+            subj = (q.get("subject") or [""])[0]
+            desc = (q.get("description") or [""])[0]
+            if subj or desc:
+                try:
+                    inject += f"window.__PRELOAD__={json.dumps(run_model(name, subj, desc))};"
+                except Exception as e:
+                    inject += f'window.__PRELOAD__={json.dumps({"error": str(e)})};'
+            html = html.replace("</head>", f"<script>{inject}</script></head>", 1)
+            return self._send(200, html.encode("utf-8"), "text/html; charset=utf-8")
+        if path.startswith("/api/card/"):
+            name = path.rsplit("/", 1)[-1]
+            if name not in MODEL_ROUTES.values():
+                return self._send(404, json.dumps({"error": "unknown model"}))
+            try:
+                return self._send(200, json.dumps(_card(name)))
+            except SystemExit as e:
+                return self._send(200, json.dumps({"error": str(e)}))
         if path == "/api/examples":
             return self._send(200, json.dumps(EXAMPLES))
         self._send(404, json.dumps({"error": "not found"}))
 
     def do_POST(self):
         path = urlparse(self.path).path
-        if path not in ("/api/predict", "/api/cascade"):
+        model_api = path.rsplit("/", 1)[-1] if path.startswith("/api/model/") else None
+        if path not in ("/api/predict", "/api/cascade") and \
+                model_api not in MODEL_ROUTES.values():
             return self._send(404, json.dumps({"error": "not found"}))
         try:
             n = int(self.headers.get("Content-Length", 0))
@@ -125,11 +157,55 @@ class Handler(BaseHTTPRequestHandler):
             subj, desc = payload.get("subject", ""), payload.get("description", "")
             if path == "/api/predict":
                 return self._send(200, json.dumps(predict(subj, desc)))
+            if model_api:
+                return self._send(200, json.dumps(run_model(model_api, subj, desc)))
             return self._send(200, json.dumps(cascade(subj, desc)))
         except SystemExit as e:                     # a bundle has not been exported
             self._send(200, json.dumps({"error": str(e)}))
         except Exception as e:                      # keep the demo alive
             self._send(500, json.dumps({"error": f"{type(e).__name__}: {e}"}))
+
+
+def _card(name):
+    if name == "classification":
+        from models.classification.predict import card
+    elif name == "routing":
+        from models.routing.predict import card
+    else:
+        from models.recommendation.predict import card
+    return card()
+
+
+def run_model(name, subject, description):
+    """
+    Score one ticket with ONE of the Arm B models.
+
+    Routing and recommendation are cascaded, so running them alone still means
+    running classification first. The upstream result is returned alongside
+    rather than hidden, because on a page about one model the dependency is
+    exactly what a reader needs to see.
+    """
+    from shared.serving import ticket_frame
+    from models.classification.predict import predict as p1
+
+    if not (subject or "").strip() and not (description or "").strip():
+        return {"error": "Enter a subject or a description."}
+
+    frame = ticket_frame(subject, description)
+    cat = p1(frame=frame)
+    vec = cat.pop("proba_vector")
+
+    if name == "classification":
+        return {"model": name, "result": cat}
+    if name == "routing":
+        from models.routing.predict import predict as p2
+        return {"model": name, "upstream": {"label": cat["label"],
+                                            "confidence": cat["confidence"]},
+                "result": p2(frame=frame, category=vec)}
+    from models.recommendation.predict import predict as p3
+    return {"model": name, "upstream": {"label": cat["label"],
+                                        "confidence": cat["confidence"]},
+            "result": p3(frame=frame, category=cat["label"])}
 
 
 def cascade(subject, description):
@@ -176,6 +252,8 @@ def main():
     srv = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"\n  ICT Help Desk triage prototype running at  {url}")
     print(f"  Arm B cascade                              {url}cascade")
+    for r in MODEL_ROUTES:
+        print(f"    {r:40s} {url}{r.lstrip('/')}")
     print(f"  evidence dashboard                         {url}dashboard"
           + ("" if os.path.exists(DASHBOARD) else "   [not built yet]"))
     print("  press Ctrl+C to stop\n")

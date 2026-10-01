@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arm B — model</title>
+<style>
+  :root{
+    --bg:#f4f6fa; --panel:#ffffff; --ink:#15213a; --muted:#5b6880;
+    --line:#dde3ee; --accent:#1f3864; --accent2:#4c72b0; --warm:#dd8452;
+    --good:#2e7d5b; --shadow:0 1px 3px rgba(21,33,58,.07),0 5px 16px rgba(21,33,58,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .app{display:flex;flex-direction:column;height:100%;max-width:1340px;margin:0 auto;padding:12px 16px 8px}
+  .cols{flex:1;display:grid;grid-template-columns:352px minmax(0,1fr);gap:14px;min-height:0}
+  .pane{min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:2px;
+    scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .pane::-webkit-scrollbar{width:9px}
+  .pane::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px}
+  @media (max-width:980px),(max-height:600px){
+    html,body{height:auto}.app{height:auto;padding-bottom:36px}
+    .cols{grid-template-columns:1fr}.pane{overflow:visible}
+  }
+  .bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:11px}
+  .nav{display:inline-flex;gap:2px;background:#eef2f9;border:1px solid var(--line);
+    border-radius:9px;padding:3px;flex:none;flex-wrap:wrap}
+  .nav a{font-size:12.5px;font-weight:600;text-decoration:none;color:var(--muted);
+    padding:5px 10px;border-radius:7px;white-space:nowrap}
+  .nav a:hover{background:#e2e9f6;color:var(--accent)}
+  .nav a[aria-current="page"]{background:var(--accent);color:#fff}
+  .brand{display:flex;align-items:baseline;gap:9px;min-width:0;flex:1 1 auto}
+  h1{margin:0;font-size:19px;letter-spacing:-.02em;white-space:nowrap}
+  .sub{color:var(--muted);font-size:12.8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .badge{background:#fff5ec;color:#a65a24;border:1px solid #f2d6bd;border-radius:999px;
+    padding:3px 11px;font-size:12px;font-weight:650;flex:none;white-space:nowrap}
+  /* six tabs + title + badge do not fit on a 1366 projector; the footer
+     already carries the provenance note, so the badge is the first to go */
+  @media (max-width:1460px){.sub{display:none}}
+  @media (max-width:1330px){.badge{display:none}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    padding:15px;box-shadow:var(--shadow)}
+  .card + .card{margin-top:12px}
+  .card h2{margin:0 0 11px;font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+  label{display:block;font-size:12.5px;font-weight:650;margin:10px 0 4px;color:var(--muted)}
+  form label:first-of-type{margin-top:0}
+  input[type=text],textarea{width:100%;padding:9px 11px;border:1px solid var(--line);
+    border-radius:8px;font:inherit;font-size:14.5px;background:#fcfdff;color:var(--ink);resize:vertical}
+  input:focus,textarea:focus{outline:2px solid var(--accent2);outline-offset:-1px}
+  textarea{min-height:88px}
+  button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid transparent}
+  .go{width:100%;margin-top:13px;padding:10px 16px;background:var(--accent);color:#fff;
+    font-weight:650;font-size:15px}
+  .go:hover{background:#182c50}
+  .go:disabled{opacity:.6;cursor:progress}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+  .chip{padding:5px 10px;font-size:12.5px;background:#eef2f9;border:1px solid var(--line);color:var(--accent)}
+  .chip:hover{background:#e2e9f6}
+  .empty{color:var(--muted);text-align:center;padding:40px 18px;font-size:14.5px}
+  .fill{height:100%;display:flex;align-items:center;justify-content:center}
+  @media (max-width:980px),(max-height:600px){.fill{height:auto}}
+  .err{background:#fdeeee;border:1px solid #f4cccc;color:#8c2b2b;padding:11px 13px;
+    border-radius:8px;white-space:pre-wrap;font-size:13px}
+
+  /* model card */
+  .mc dt{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+    font-weight:700;margin-top:9px}
+  .mc dd{margin:2px 0 0;font-size:13.2px}
+  .mc dl{margin:0}
+  .mstats{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .mstat{flex:1 1 90px;background:#f7f9fd;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+  .mstat .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700}
+  .mstat .v{font-size:18px;font-weight:660;font-variant-numeric:tabular-nums;margin-top:1px}
+  .mnote{font-size:12.3px;color:var(--muted);margin-top:11px;padding-top:10px;
+    border-top:1px dashed var(--line);line-height:1.5}
+
+  .upstream{background:#eaf5f0;border:1px solid #c5e3d5;border-radius:9px;
+    padding:9px 13px;margin-bottom:12px;font-size:12.8px;color:var(--good)}
+  .upstream b{color:var(--ink)}
+  .dlabel{font-size:23px;font-weight:680;letter-spacing:-.015em;line-height:1.2}
+  .bar2{height:9px;background:#e8edf6;border-radius:99px;overflow:hidden;margin:8px 0 5px}
+  .bar2>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:99px}
+  .dmeta{font-size:12.8px;color:var(--muted)}
+  .dmeta b{color:var(--ink);font-weight:640}
+  .rrow{display:flex;align-items:center;gap:10px;font-size:13.2px;padding:4px 0}
+  .rrow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rrow .tr{width:150px;height:8px;background:#eef2f9;border-radius:99px;overflow:hidden;flex:none}
+  .rrow .tr>i{display:block;height:100%;background:var(--accent2);border-radius:99px}
+  .rrow .sc{width:46px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);flex:none}
+  .rrow.top .nm{font-weight:660}
+  .rrow.top .tr>i{background:var(--accent)}
+  .hint{font-size:12px;color:var(--muted);margin-top:10px;font-style:italic;line-height:1.5}
+
+  table{width:100%;border-collapse:collapse;font-size:13.2px}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.07em;
+    color:var(--muted);padding:0 9px 7px;border-bottom:1px solid var(--line);font-weight:700}
+  td{padding:9px;border-bottom:1px solid #eef1f7;vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .tid{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted);white-space:nowrap}
+  .sim{font-variant-numeric:tabular-nums;font-weight:650;color:var(--accent);white-space:nowrap}
+  .sim.weak{color:var(--warm)}
+  .res{color:var(--muted);font-size:12.7px;margin-top:2px}
+  .tag{display:inline-block;font-size:11px;background:#eef2f9;color:var(--accent);
+    border-radius:5px;padding:1px 6px;margin-right:4px}
+  .weakbar{background:#fff6ee;border:1px solid #f2d9c2;color:#8a4f21;border-radius:8px;
+    padding:9px 12px;margin-bottom:11px;font-size:12.8px}
+  .foot{margin-top:9px;color:var(--muted);font-size:11.6px;flex:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar">
+    <nav class="nav" id="nav" aria-label="Views">
+      <a href="/">Triage</a>
+      <a href="/classification" data-m="classification">Classification</a>
+      <a href="/routing" data-m="routing">Routing</a>
+      <a href="/recommendation" data-m="recommendation">Recommendation</a>
+      <a href="/cascade">Cascade</a>
+      <a href="/dashboard">Dashboard</a>
+    </nav>
+    <div class="brand"><h1 id="title">Model</h1><span class="sub" id="subtitle"></span></div>
+    <span class="badge">Research prototype &middot; Moi University ICT Directorate</span>
+  </div>
+
+  <main class="cols">
+    <aside class="pane">
+      <div class="card">
+        <h2>Incoming ticket</h2>
+        <form id="f">
+          <label for="subject">Subject</label>
+          <input type="text" id="subject" placeholder="Cannot access elearning portal" autocomplete="off">
+          <label for="description">Description</label>
+          <textarea id="description" placeholder="Describe the problem as a user would write it&hellip;"></textarea>
+          <button class="go" id="go" type="submit">Run this model</button>
+        </form>
+        <label style="margin-top:14px">Try an example</label>
+        <div class="chips" id="chips"></div>
+      </div>
+      <div class="card mc" id="mcard"><h2>The model</h2>
+        <div class="empty" style="padding:14px">loading&hellip;</div></div>
+    </aside>
+    <section class="pane" id="out">
+      <div class="card fill"><div class="empty">
+        Enter a ticket to run this model on its own.
+      </div></div>
+    </section>
+  </main>
+
+  <div class="foot" id="foot">
+    Fitted on the training partition only, over a corpus built to the authorised
+    export's field specification pending institutional data-access approval.
+  </div>
+</div>
+
+<script>
+const MODEL = window.__MODEL__ || "classification";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pct = v => (v * 100).toFixed(1) + "%";
+const f3 = v => (v == null || isNaN(v)) ? "—" : Number(v).toFixed(3);
+
+document.querySelectorAll("#nav a[data-m]").forEach(a => {
+  if (a.dataset.m === MODEL) a.setAttribute("aria-current", "page");
+});
+
+/* ---- model card ---- */
+fetch(`/api/card/${MODEL}`).then(r => r.json()).then(c => {
+  if (c.error) { $("#mcard").innerHTML =
+    `<h2>The model</h2><div class="err">${esc(c.error)}</div>`; return; }
+  document.title = `${c.name} — Arm B`;
+  $("#title").textContent = c.name;
+  $("#subtitle").textContent = `${c.thesis} · ${c.objective}`;
+  $("#mcard").innerHTML = `<h2>The model</h2>
+    <dl>
+      <dt>Approach</dt><dd>${esc(c.head)}</dd>
+      <dt>Features</dt><dd>${esc(c.features)}</dd>
+      <dt>Representation</dt><dd>${esc(c.encoder)}</dd>
+    </dl>
+    <div class="mstats">${c.metrics.map(m => `
+      <div class="mstat"><div class="k">${esc(m.label)}</div>
+        <div class="v">${f3(m.value)}</div></div>`).join("")}</div>
+    <div class="mnote">${esc(c.note)}</div>`;
+}).catch(() => {});
+
+fetch("/api/examples").then(r => r.json()).then(xs => {
+  $("#chips").innerHTML = xs.map((x, i) =>
+    `<button class="chip" type="button" data-i="${i}">${esc(x.label)}</button>`).join("");
+  $("#chips").addEventListener("click", e => {
+    const b = e.target.closest(".chip"); if (!b) return;
+    const x = xs[+b.dataset.i];
+    $("#subject").value = x.subject; $("#description").value = x.description;
+    $("#f").requestSubmit();
+  });
+}).catch(() => {});
+
+/* ---- renderers, one per model ---- */
+function ranked(rows, n, max){
+  const m = max || Math.max(...rows.map(r => r.score), 1e-9);
+  return rows.slice(0, n).map((r, i) => `
+    <div class="rrow ${i === 0 ? "top" : ""}">
+      <span class="nm">${esc(r.label)}</span>
+      <span class="tr"><i style="width:${Math.max(2, r.score / m * 100)}%"></i></span>
+      <span class="sc">${r.score.toFixed(3)}</span>
+    </div>`).join("");
+}
+const upstreamStrip = u => u ? `<div class="upstream">
+    Ran <b>model 1</b> first — this model is cascaded on it. Category:
+    <b>${esc(u.label)}</b> (${pct(u.confidence)}).
+  </div>` : "";
+
+const RENDER = {
+  classification(d){
+    const r = d.result;
+    return `<div class="card">
+      <h2>Predicted category</h2>
+      <div class="dlabel">${esc(r.label)}</div>
+      <div class="bar2"><i style="width:${Math.max(2, r.confidence * 100)}%"></i></div>
+      <div class="dmeta">confidence <b>${pct(r.confidence)}</b> &middot; next best:
+        ${esc(r.runner_up)} (${pct(r.runner_up_confidence)})</div>
+    </div>
+    <div class="card"><h2>Across all ${r.distribution.length} categories</h2>
+      ${ranked(r.distribution, r.distribution.length, 1)}
+      <div class="hint">A full distribution, not just a label. Thresholding it to
+        send low-confidence tickets to a human — rather than always answering — is
+        the abstention experiment Chapter Five recommends.</div>
+    </div>`;
+  },
+  routing(d){
+    const r = d.result, margin = r.score_type === "margin";
+    return `<div class="card">
+      ${upstreamStrip(d.upstream)}
+      <h2>Suggested resolver team</h2>
+      <div class="dlabel">${esc(r.label)}</div>
+      <div class="bar2"><i style="width:${Math.max(2, r.confidence * 100)}%"></i></div>
+      <div class="dmeta">score <b>${f3(r.confidence)}</b> &middot; next:
+        ${esc(r.runner_up)} (${f3(r.runner_up_confidence)})</div>
+    </div>
+    <div class="card"><h2>All ${r.ranked.length} teams, ranked</h2>
+      ${ranked(r.ranked, r.ranked.length)}
+      <div class="hint">${margin
+        ? "Relative scores from the classifier's margins — not probabilities. A margin dressed up as a probability would claim confidence the model never had."
+        : "Probabilities from the classifier."}
+        Routing is the weakest of the three decisions and the costliest to get
+        wrong, so Chapter Five recommends deploying the top two or three as a
+        suggestion rather than auto-assigning the first.</div>
+    </div>`;
+  },
+  recommendation(d){
+    const x = d.result;
+    const warn = !x.strong_match ? `<div class="weakbar">
+        No close precedent — best match ${x.top_similarity.toFixed(3)}, below the
+        ${x.threshold.toFixed(2)} threshold. Treat these as loose suggestions.
+      </div>` : "";
+    return `<div class="card">
+      ${upstreamStrip(d.upstream)}
+      <h2>Most similar resolved tickets</h2>
+      ${x.category_filtered ? `<div class="hint" style="margin:0 0 10px">Candidates
+        narrowed to <b>${esc(d.upstream.label)}</b> — the category model 1 predicted.</div>` : ""}
+      ${warn}
+      <table><thead><tr><th style="width:92px">Ticket</th>
+        <th>Problem &amp; resolution</th><th style="width:66px">Match</th></tr></thead><tbody>
+      ${x.matches.map(m => `<tr>
+        <td class="tid">${esc(m.ticket_id)}</td>
+        <td><div><span class="tag">${esc(m.category)}</span><span class="tag">${esc(m.team)}</span></div>
+          <div style="font-weight:600;margin-top:3px">${esc(m.subject)}</div>
+          <div class="res">${esc(m.resolution)}</div></td>
+        <td class="sim ${m.weak ? "weak" : ""}">${m.similarity.toFixed(3)}</td>
+      </tr>`).join("")}</tbody></table>
+      <div class="hint">It ranks rather than committing, which is why it fails
+        gracefully: a wrong candidate costs a glance, a wrong routing decision
+        costs a reassignment.</div>
+    </div>`;
+  },
+};
+
+function render(d){
+  const out = $("#out");
+  if (!d || d.error) {
+    out.innerHTML = `<div class="card"><div class="err">${esc(d && d.error || "No result")}</div></div>`;
+    return;
+  }
+  out.innerHTML = RENDER[MODEL](d);
+  out.scrollTop = 0;
+}
+
+(function(){
+  const q = new URLSearchParams(location.search);
+  if (!q.has("subject") && !q.has("description")) return;
+  $("#subject").value = q.get("subject") || "";
+  $("#description").value = q.get("description") || "";
+  if (window.__PRELOAD__) render(window.__PRELOAD__);
+  else $("#f").requestSubmit();
+})();
+
+$("#f").addEventListener("submit", async e => {
+  e.preventDefault();
+  const go = $("#go");
+  go.disabled = true; go.textContent = "Running…";
+  try {
+    const res = await fetch(`/api/model/${MODEL}`, {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({subject: $("#subject").value, description: $("#description").value})
+    });
+    render(await res.json());
+  } catch (err) {
+    $("#out").innerHTML = `<div class="card"><div class="err">${esc(err)}</div></div>`;
+  } finally { go.disabled = false; go.textContent = "Run this model"; }
+});
+</script>
+</body>
+</html>

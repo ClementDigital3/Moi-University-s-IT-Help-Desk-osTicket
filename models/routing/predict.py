@@ -49,3 +49,25 @@ def predict(subject="", description="", department="", category=None,
         "score_type": kind,
         "cascaded": bool(b["needs_category"]),
     }
+
+
+def card():
+    b = load()
+    return {
+        "name": "Resolver routing",
+        "thesis": "B2",
+        "objective": "Objective 3 / RQ3",
+        "head": b["head"],
+        "features": b["feature_set"],
+        "encoder": b["encoder"],
+        "classes": len(b["classes"]),
+        "metrics": [
+            {"label": "Accuracy", "value": b.get("accuracy")},
+            {"label": "Macro F1", "value": b.get("macro_f1")},
+            {"label": "Correct-routing rate", "value": b.get("correct_routing_rate")},
+        ],
+        "note": ("Cascaded on classification: conditioned on the predicted category, "
+                 "which the ablation found worth +0.0073 macro F1 — more than every "
+                 "other context block combined."),
+        "cascaded": bool(b["needs_category"]),
+    }

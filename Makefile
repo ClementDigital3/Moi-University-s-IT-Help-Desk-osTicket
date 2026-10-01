@@ -28,9 +28,12 @@ help:
 	@echo "  DEMO"
 	@echo "    make export       persist all four models for serving"
 	@echo "    make demo         serve all three views at http://127.0.0.1:8000/"
-	@echo "                        /          Arm A live triage"
-	@echo "                        /cascade   Arm B, the three models chained"
-	@echo "                        /dashboard Chapter Four evidence"
+	@echo "                        /                Arm A live triage"
+	@echo "                        /classification  Arm B model 1 alone"
+	@echo "                        /routing         Arm B model 2 alone"
+	@echo "                        /recommendation  Arm B model 3 alone"
+	@echo "                        /cascade         all three chained"
+	@echo "                        /dashboard       Chapter Four evidence"
 	@echo ""
 	@echo "  HOUSEKEEPING"
 	@echo "    make status       what has been run, what is stale"
@@ -66,9 +69,7 @@ export:
 
 demo: export
 	@echo ""
-	@echo "  /          Arm A live triage"
-	@echo "  /cascade   Arm B cascade"
-	@echo "  /dashboard evidence"
+	@echo "  /  /classification  /routing  /recommendation  /cascade  /dashboard"
 	@echo ""
 	$(PY) -m models.end_to_end.serve
 

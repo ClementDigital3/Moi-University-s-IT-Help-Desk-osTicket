@@ -17,7 +17,7 @@ Both train and test on the same split, so comparisons are paired.
 ```bash
 make            # list every command
 make status     # what has been run already
-make demo       # three views at http://127.0.0.1:8000/
+make demo       # six views at http://127.0.0.1:8000/
 make all        # rerun the whole pipeline
 ```
 
@@ -26,8 +26,14 @@ Three views, one server:
 | URL | Shows |
 |---|---|
 | `/` | Arm A — one model makes all three decisions |
-| `/cascade` | Arm B — three models chained, each feeding the next |
+| `/classification` | Arm B model 1 on its own |
+| `/routing` | Arm B model 2 on its own |
+| `/recommendation` | Arm B model 3 on its own |
+| `/cascade` | all three chained, each feeding the next |
 | `/dashboard` | the Chapter Four evidence |
+
+Each model page carries a model card — approach, features, representation and
+its held-out metrics — so a single model can be presented without the others.
 
 ## Results
 

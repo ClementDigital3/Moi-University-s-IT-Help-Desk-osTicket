@@ -38,6 +38,25 @@ def predict(subject="", description="", department="", frame=None, bundle=None):
     }
 
 
+def card():
+    """What this model is, for the page that presents it."""
+    b = load()
+    return {
+        "name": "Ticket classification",
+        "thesis": "B1",
+        "objective": "Objective 3 / RQ3 — and the ablation evidence for RQ1",
+        "head": b["head"],
+        "features": b["feature_set"],
+        "encoder": b["encoder"],
+        "classes": len(b["classes"]),
+        "metrics": [
+            {"label": "Accuracy", "value": b.get("accuracy")},
+            {"label": "Macro F1", "value": b.get("macro_f1")},
+        ],
+        "note": "Head of the cascade — both other models consume what it publishes.",
+    }
+
+
 if __name__ == "__main__":
     import sys, json
     r = predict(sys.argv[1] if len(sys.argv) > 1 else "Cannot upload course materials",

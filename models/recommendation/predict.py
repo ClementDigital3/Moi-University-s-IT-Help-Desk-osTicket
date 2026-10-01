@@ -65,3 +65,23 @@ def predict(subject="", description="", category=None, top_k=5,
         "category_filtered": filtered,
         "variant": b["best_variant"],
     }
+
+
+def card():
+    b = load()
+    return {
+        "name": "Historical-resolution recommendation",
+        "thesis": "B3",
+        "objective": "Objective 4 / RQ4",
+        "head": b["best_variant"],
+        "features": f"semantic + lexical blend (w={b['blend_w']}), category-filtered",
+        "encoder": b["encoder"],
+        "classes": len(b["records"]),
+        "metrics": [
+            {"label": "Top-1", "value": b.get("top1")},
+            {"label": "MRR", "value": b.get("mrr")},
+        ],
+        "note": ("Retrieval, not classification — it ranks rather than committing, "
+                 "which is why it is the most forgiving of the three decisions. "
+                 "The one decision where Arm B beats Arm A outright."),
+    }

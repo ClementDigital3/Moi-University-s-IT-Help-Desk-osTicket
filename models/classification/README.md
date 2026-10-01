@@ -26,8 +26,11 @@ implementation can run on ticket text alone.
 
 ## Prototype
 
+Its own page at `/classification`, plus the combined `/cascade` view.
+Shows the full distribution across all seven categories, not just the label.
+
 ```bash
-make export && make demo     # then http://127.0.0.1:8000/cascade
+make export && make demo     # then http://127.0.0.1:8000/classification
 ```
 
 `export.py` persists the head, the fitted `ContextFitter` and the selected

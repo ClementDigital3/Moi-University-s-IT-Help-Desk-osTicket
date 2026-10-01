@@ -34,8 +34,11 @@ Top-1, p=0.00011).
 
 ## Prototype
 
+Its own page at `/recommendation`, plus the combined `/cascade` view.
+Shows the matched tickets with their resolutions, and the category filter applied.
+
 ```bash
-make export && make demo     # then http://127.0.0.1:8000/cascade
+make export && make demo     # then http://127.0.0.1:8000/recommendation
 ```
 
 `predict()` takes model 1's predicted `category` to narrow candidates — the

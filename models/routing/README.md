@@ -35,8 +35,11 @@ Chapter Five therefore recommends deploying it as a *ranked suggestion*.
 
 ## Prototype
 
+Its own page at `/routing`, plus the combined `/cascade` view.
+Shows all seven teams ranked, and names model 1 as the upstream it ran first.
+
 ```bash
-make export && make demo     # then http://127.0.0.1:8000/cascade
+make export && make demo     # then http://127.0.0.1:8000/routing
 ```
 
 `predict()` requires model 1's `proba_vector` as `category` — it raises rather

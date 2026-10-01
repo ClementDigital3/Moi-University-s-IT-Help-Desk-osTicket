@@ -52,3 +52,30 @@ the CSVs.
 | `results/deploy/*.joblib` | rebuild the serving bundle |
 
 Head selection writes each result as it finishes, so an interrupted run resumes.
+
+## The design system
+
+`shared/ui.css` is the single definition of colour, type and spacing. Every page
+links it at `/static/ui.css`; the dashboard inlines the same file at build time,
+because it must also work standalone with no server.
+
+**Colour follows the charts, not the other way round.** The data-visualisation
+palette was validated against the colourblind-separation and contrast gates in
+both modes, so the interface is drawn from those same ramps rather than a second
+scheme that merely sits near it. The division is strict:
+
+- `--series-*` and `--seq-*` encode **data** and are never used for chrome
+- `--accent` (the dark end of the same blue ramp) and the ink scale carry the
+  **interface**, so nothing in the UI can be mistaken for a data series
+- `--good` / `--warn` / `--bad` are **status** and always ship with an icon or
+  label, never colour alone
+
+**Dark mode is selected, not inverted.** Each dark step was chosen against the
+dark surface. Adding a colour means adding both steps.
+
+**Spacing is `--s1`…`--s7`, all multiples of 4**, so everything lands on one
+grid. Type is `--t-xs`…`--t-3xl`. Reach for a token before a literal; a literal
+in a page is a small divergence that compounds.
+
+Page-specific CSS is allowed but should stay small — currently under 25 lines
+each, for genuinely unique things like the cascade's connector arrows.

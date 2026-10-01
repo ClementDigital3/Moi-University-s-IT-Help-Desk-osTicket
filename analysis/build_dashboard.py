@@ -17,6 +17,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.join(HERE, "dashboard_template.html")
 OUT = os.path.join(RESULTS, "dashboard.html")
 TOKEN = "/*__DATA__*/{}"
+CSS_TOKEN = "/*__UI_CSS__*/"
+UI_CSS = os.path.join(ROOT, "shared", "ui.css")
 
 
 def main():
@@ -30,6 +32,11 @@ def main():
     html = open(TEMPLATE, encoding="utf-8").read()
     if TOKEN not in html:
         raise SystemExit(f"data placeholder not found in {TEMPLATE}")
+
+    # The dashboard must also work as a standalone file with no server, so the
+    # shared stylesheet is inlined rather than linked. Same bytes either way.
+    if CSS_TOKEN in html:
+        html = html.replace(CSS_TOKEN, open(UI_CSS, encoding="utf-8").read(), 1)
 
     # </script> inside embedded JSON would close the tag early
     blob = json.dumps(payload, separators=(",", ":")).replace("</", "<\\/")

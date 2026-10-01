@@ -70,4 +70,8 @@ transfer. Drop in the real export and rerun — everything regenerates.
 **Caching.** `results/cache/` holds embeddings and fitted models so reruns take
 seconds. `make clean-cache` forces a refit (slow — ~1 hour).
 
+All six pages share one design system (`shared/ui.css`) — one palette, one type
+scale, one spacing grid, light and dark. The interface colours and the chart
+colours come from the same validated ramps.
+
 See [NOTES.md](NOTES.md) for design decisions and the traps worth knowing.

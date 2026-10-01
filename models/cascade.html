@@ -4,113 +4,30 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Arm B — The cascade</title>
+<link rel="stylesheet" href="/static/ui.css">
+<script src="/static/ui.js" defer></script>
 <style>
-  :root{
-    --bg:#f4f6fa; --panel:#ffffff; --ink:#15213a; --muted:#5b6880;
-    --line:#dde3ee; --accent:#1f3864; --accent2:#4c72b0; --warm:#dd8452;
-    --good:#2e7d5b; --shadow:0 1px 3px rgba(21,33,58,.07),0 5px 16px rgba(21,33,58,.05);
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{margin:0;background:var(--bg);color:var(--ink);
-    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-  .app{display:flex;flex-direction:column;height:100%;max-width:1340px;margin:0 auto;padding:12px 16px 8px}
-  .cols{flex:1;display:grid;grid-template-columns:352px minmax(0,1fr);gap:14px;min-height:0}
-  .pane{min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:2px;
-    scrollbar-width:thin;scrollbar-color:var(--line) transparent}
-  .pane::-webkit-scrollbar{width:9px}
-  .pane::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px}
-  @media (max-width:880px),(max-height:600px){
-    html,body{height:auto}.app{height:auto;padding-bottom:36px}
-    .cols{grid-template-columns:1fr}.pane{overflow:visible}
-  }
-  .bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:11px}
-  .nav{display:inline-flex;gap:3px;background:#eef2f9;border:1px solid var(--line);
-    border-radius:9px;padding:3px;flex:none}
-  .nav{flex-wrap:wrap}
-  .nav a{font-size:12.5px;font-weight:600;text-decoration:none;color:var(--muted);
-    padding:5px 12px;border-radius:7px}
-  .ngroup{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;
-    font-weight:750;color:var(--muted);padding:0 6px 0 7px;align-self:center}
-  .ndiv{width:1px;align-self:stretch;background:var(--line);margin:3px 5px}
-  .nav a:hover{background:#e2e9f6;color:var(--accent)}
-  .nav a[aria-current="page"]{background:var(--accent);color:#fff}
-  .brand{display:flex;align-items:baseline;gap:9px;min-width:0;flex:1 1 auto}
-  h1{margin:0;font-size:19px;letter-spacing:-.02em;white-space:nowrap}
-  .sub{color:var(--muted);font-size:12.8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .badge{background:#fff5ec;color:#a65a24;border:1px solid #f2d6bd;border-radius:999px;
-    padding:3px 11px;font-size:12px;font-weight:650;flex:none;white-space:nowrap}
-  @media (max-width:1460px){.sub{display:none}}
-  @media (max-width:1330px){.badge{display:none}}
-
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;
-    padding:15px;box-shadow:var(--shadow)}
-  label{display:block;font-size:12.5px;font-weight:650;margin:10px 0 4px;color:var(--muted)}
-  form label:first-of-type{margin-top:0}
-  input[type=text],textarea{width:100%;padding:9px 11px;border:1px solid var(--line);
-    border-radius:8px;font:inherit;font-size:14.5px;background:#fcfdff;color:var(--ink);resize:vertical}
-  input:focus,textarea:focus{outline:2px solid var(--accent2);outline-offset:-1px}
-  textarea{min-height:96px}
-  button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid transparent}
-  .go{width:100%;margin-top:13px;padding:10px 16px;background:var(--accent);color:#fff;
-    font-weight:650;font-size:15px}
-  .go:hover{background:#182c50}
-  .go:disabled{opacity:.6;cursor:progress}
-  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
-  .chip{padding:5px 10px;font-size:12.5px;background:#eef2f9;border:1px solid var(--line);color:var(--accent)}
-  .chip:hover{background:#e2e9f6}
-  .card h2{margin:0 0 11px;font-size:11.5px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
-  .empty{color:var(--muted);text-align:center;padding:40px 18px;font-size:14.5px}
-  .fill{height:100%;display:flex;align-items:center;justify-content:center}
-  @media (max-width:880px),(max-height:600px){.fill{height:auto}}
-  .err{background:#fdeeee;border:1px solid #f4cccc;color:#8c2b2b;padding:11px 13px;border-radius:8px;
-    white-space:pre-wrap;font-size:13px}
-
-  /* ---- the chain ---- */
-  .stage{background:var(--panel);border:1px solid var(--line);border-radius:11px;
-    padding:14px 16px;box-shadow:var(--shadow);position:relative}
+  /* page-specific: the connector that makes the chain visible */
+  .stage{background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--r-lg);padding:var(--s3) var(--s4);box-shadow:var(--shadow);
+    position:relative}
   .stage + .stage{margin-top:26px}
-  .stage + .stage::before{content:"";position:absolute;left:31px;top:-24px;height:24px;
-    width:2px;background:var(--line)}
+  .stage + .stage::before{content:"";position:absolute;left:31px;top:-24px;
+    height:24px;width:2px;background:var(--line-2)}
   .stage + .stage::after{content:"";position:absolute;left:27px;top:-8px;
     border-left:5px solid transparent;border-right:5px solid transparent;
-    border-top:7px solid var(--line)}
-  .shead{display:flex;align-items:center;gap:10px;margin-bottom:9px}
-  .num{width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;
-    font-size:12.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
-  .sname{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
-  .smodel{font-size:11.5px;color:var(--muted);margin-left:auto;text-align:right}
-  .feeds{font-size:11.8px;color:var(--good);background:#eaf5f0;border:1px solid #c5e3d5;
-    border-radius:6px;padding:2px 8px;display:inline-block;margin-top:8px}
-  .dlabel{font-size:20px;font-weight:680;letter-spacing:-.015em;line-height:1.25}
-  .bar2{height:8px;background:#e8edf6;border-radius:99px;overflow:hidden;margin:7px 0 5px}
-  .bar2>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:99px}
-  .dmeta{font-size:12.4px;color:var(--muted)}
-  .dmeta b{color:var(--ink);font-weight:640}
-  .rank{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line)}
-  .rrow{display:flex;align-items:center;gap:9px;font-size:13px;padding:3px 0}
-  .rrow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .rrow .tr{width:110px;height:7px;background:#eef2f9;border-radius:99px;overflow:hidden;flex:none}
-  .rrow .tr>i{display:block;height:100%;background:var(--accent2);border-radius:99px}
-  .rrow .sc{width:42px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);flex:none}
-  .rrow.top .nm{font-weight:650}
-  .rrow.top .tr>i{background:var(--accent)}
-  .hint{font-size:11.8px;color:var(--muted);margin-top:8px;font-style:italic}
-
-  table{width:100%;border-collapse:collapse;font-size:13.2px;margin-top:4px}
-  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.07em;
-    color:var(--muted);padding:0 9px 7px;border-bottom:1px solid var(--line);font-weight:700}
-  td{padding:9px;border-bottom:1px solid #eef1f7;vertical-align:top}
-  tr:last-child td{border-bottom:none}
-  .tid{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted);white-space:nowrap}
-  .sim{font-variant-numeric:tabular-nums;font-weight:650;color:var(--accent);white-space:nowrap}
-  .sim.weak{color:var(--warm)}
-  .res{color:var(--muted);font-size:12.7px;margin-top:2px}
-  .tag{display:inline-block;font-size:11px;background:#eef2f9;color:var(--accent);
-    border-radius:5px;padding:1px 6px;margin-right:4px}
-  .weakbar{background:#fff6ee;border:1px solid #f2d9c2;color:#8a4f21;border-radius:8px;
-    padding:9px 12px;margin:8px 0;font-size:12.8px}
-  .foot{margin-top:9px;color:var(--muted);font-size:11.6px;flex:none}
+    border-top:7px solid var(--line-2)}
+  .shead{display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s2)}
+  .num{width:26px;height:26px;border-radius:50%;background:var(--accent);
+    color:var(--accent-ink);font-size:var(--t-sm);font-weight:720;display:flex;
+    align-items:center;justify-content:center;flex:none}
+  .sname{font-size:var(--t-xs);text-transform:uppercase;letter-spacing:.08em;
+    color:var(--ink-3);font-weight:720}
+  .smodel{font-size:var(--t-xs);color:var(--ink-3);margin-left:auto;text-align:right}
+  .feeds{font-size:11.8px;color:var(--good-ink);background:var(--good-bg);
+    border:1px solid var(--good-line);border-radius:6px;padding:2px 8px;
+    display:inline-block;margin-top:var(--s2)}
+  .rank{margin-top:var(--s2);padding-top:var(--s2);border-top:1px dashed var(--line)}
 </style>
 </head>
 <body>
@@ -132,6 +49,7 @@
       <h1>Arm B — Cascade</h1>
       <span class="sub">B1, B2 and B3 chained &mdash; each feeding the next.</span>
     </div>
+    <button class="btn-ghost" id="themebtn" type="button">Dark</button>
     <span class="badge">Research prototype &middot; Moi University ICT Directorate</span>
   </div>
 
@@ -144,7 +62,7 @@
           <input type="text" id="subject" placeholder="Cannot access elearning portal" autocomplete="off">
           <label for="description">Description</label>
           <textarea id="description" placeholder="Describe the problem as a user would write it&hellip;"></textarea>
-          <button class="go" id="go" type="submit">Run the cascade</button>
+          <button class="btn" id="go" type="submit">Run the cascade</button>
         </form>
         <label style="margin-top:14px">Try an example</label>
         <div class="chips" id="chips"></div>
@@ -205,7 +123,7 @@ function render(d){
       <span class="sname">Category &middot; B1</span>
       <span class="smodel">${esc(c.model)}</span></div>
     <div class="dlabel">${esc(c.label)}</div>
-    <div class="bar2"><i style="width:${Math.max(2, c.confidence * 100)}%"></i></div>
+    <div class="meter"><i style="width:${Math.max(2, c.confidence * 100)}%"></i></div>
     <div class="dmeta">confidence <b>${pct(c.confidence)}</b> &middot; next best:
       ${esc(c.runner_up)} (${pct(c.runner_up_confidence)})</div>
     <span class="feeds">&darr; feeds its full distribution to B2, its label to B3</span>
@@ -224,7 +142,7 @@ function render(d){
       ? " Conditioned on the category above." : ""}</div>
   </div>`;
 
-  const warn = !x.strong_match ? `<div class="weakbar">
+  const warn = !x.strong_match ? `<div class="warnbar">
       No close precedent in the archive — best match ${x.top_similarity.toFixed(3)},
       below the ${x.threshold.toFixed(2)} threshold. Treat these as loose suggestions.
     </div>` : "";

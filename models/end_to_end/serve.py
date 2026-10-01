@@ -22,6 +22,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PAGE = os.path.join(HERE, "app.html")
 CASCADE_PAGE = os.path.join(ROOT, "models", "cascade.html")
 MODEL_PAGE = os.path.join(ROOT, "models", "model.html")
+# One stylesheet for every page, so colour, type and spacing cannot drift
+# between them. The dashboard inlines the same file at build time, because it
+# must also work as a standalone file with no server.
+UI_CSS = os.path.join(ROOT, "shared", "ui.css")
+UI_JS = os.path.join(ROOT, "shared", "ui.js")
 
 # Each Arm B model gets its own page. They share one shell, parameterised by
 # name, because the pages differ in what they show -- not in how they are built.
@@ -118,6 +123,12 @@ class Handler(BaseHTTPRequestHandler):
                 html = html.replace(
                     "</head>", f"<script>window.__PRELOAD__={pre};</script></head>", 1)
             return self._send(200, html.encode("utf-8"), "text/html; charset=utf-8")
+        if path == "/static/ui.css":
+            with open(UI_CSS, "rb") as f:
+                return self._send(200, f.read(), "text/css; charset=utf-8")
+        if path == "/static/ui.js":
+            with open(UI_JS, "rb") as f:
+                return self._send(200, f.read(), "application/javascript; charset=utf-8")
         if path in MODEL_ROUTES:
             name = MODEL_ROUTES[path]
             with open(MODEL_PAGE, "r", encoding="utf-8") as f:

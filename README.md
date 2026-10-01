@@ -30,7 +30,7 @@ Three views, one server:
 | `/routing` | Arm B model 2 on its own |
 | `/recommendation` | Arm B model 3 on its own |
 | `/cascade` | all three chained, each feeding the next |
-| `/dashboard` | the Chapter Four evidence |
+| `/dashboard` | the findings, with a present mode (`P` or `?present`) |
 
 Each model page carries a model card — approach, features, representation and
 its held-out metrics — so a single model can be presented without the others.

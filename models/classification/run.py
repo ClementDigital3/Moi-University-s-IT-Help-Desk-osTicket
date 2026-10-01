@@ -99,7 +99,7 @@ def main():
     print(f"train={len(tr)}  test={len(te)}")
 
     E_tr, E_te, enc_name, dim, enc_s = build_embeddings(tr, te, args.encoder)
-    blocks = build_blocks(tr, te, E_tr, E_te)
+    blocks, fitter = build_blocks(tr, te, E_tr, E_te)
 
     y_tr, y_te = tr[YCOL].values, te[YCOL].values
     classes = sorted(pd.unique(np.concatenate([y_tr, y_te])))

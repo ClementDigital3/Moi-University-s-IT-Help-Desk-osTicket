@@ -1,83 +1,56 @@
-# Model 2 — Resolver routing (context-aware, cascaded)
+# Model 2 — Resolver routing
 
-**Objective Three / RQ3.** Chapter Four calls this model **B2**.
+Assigns a ticket to one of 7 teams. Thesis calls this **B2**.
+Cascaded on model 1 — needs it to have run.
 
-Assigns a ticket to one of the seven resolver teams.
-
-## Architecture
-
-```
-subject + description
-        │
-        ├─ contextual sentence embedding
-        ├─ department / temporal / text-shape blocks
-        └─ PREDICTED CATEGORY DISTRIBUTION from model 1   ◄── the cascade
-        │
-        ▼
-   classifier head selected independently of model 1
-        │
-        ▼
-   resolver team
+```bash
+make m1 && make m2
 ```
 
-## The cascade, and the leakage control it needs
+## The cascade is the point
 
-This is where "context-aware" stops being a label. Routing is conditioned on
-what *kind* of problem the ticket is, not only on its words — and the ablation
-shows that conditioning is the single most valuable context block available:
+Routing is conditioned on *what kind of problem* the ticket is, not just its
+words. It's the most valuable context available:
 
 | Feature set | CV macro F1 | Δ |
 |---|---|---|
 | Semantic text only | 0.7006 | — |
-| + department metadata | 0.7031 | +0.0025 |
-| + temporal context | 0.6999 | −0.0032 |
-| + text-shape context | 0.7025 | +0.0026 |
-| **+ predicted-category context** | **0.7098** | **+0.0073** |
+| + department | 0.7031 | +0.0025 |
+| + time | 0.6999 | −0.0032 |
+| + text-shape | 0.7025 | +0.0026 |
+| **+ predicted category** | **0.7098** | **+0.0073** |
 
-The model must never see the *true* category of a training ticket. It consumes
-model 1's **out-of-fold** probabilities for training rows and genuine
-predictions for held-out rows, so it is fitted against category context of
-exactly the quality it meets at inference. Breaking this would inflate the
-result and invalidate the comparison — see `shared/artifacts.py`.
-
-## Run
-
-```bash
-.venv/bin/python -m models.classification.run    # required upstream
-.venv/bin/python -m models.routing.run
-```
-
-Fails loudly with the command to run if the upstream artifact is missing.
+It consumes model 1's **out-of-fold** probabilities during training, never the
+true category. Breaking that inflates results silently — see NOTES.md.
 
 ## Current result
 
-| | |
-|---|---|
-| Head selected | Linear SVM, C=1.0 |
-| Feature set | + predicted-category context (α=0.1) |
-| Accuracy | **0.7294** |
-| Macro F1 | **0.6888** |
-| Correct-routing rate | **0.7294** |
+Linear SVM (C=1.0) · accuracy **0.7294** · macro F1 **0.6888** · correct-routing
+rate **0.7294**
 
-Routing is the hardest of the three decisions and the most expensive to get
-wrong — a misrouted ticket burns the wrong team's time before reassignment.
-Error concentrates on team pairs described in overlapping language and on the
-first-line team, which legitimately receives everything. Chapter Five therefore
-recommends deploying this as a **ranked suggestion**, not an assignment.
+Routing is the hardest decision and the costliest to get wrong — a misroute
+burns the wrong team's time. Error concentrates on teams described in
+overlapping language and on Tier 1, which legitimately receives everything.
+Chapter Five therefore recommends deploying it as a *ranked suggestion*.
 
-## Where to extend
+## Prototype
 
-- **Top-k routing** — return the top two or three teams with confidence rather
-  than an argmax. This is the recommendation the thesis actually makes, and it
-  is not yet implemented.
-- **Joint formulation** — the cascade inherits model 1's error. A multi-task
-  model optimising category and team together is the natural comparison
-  (Chapter Five, further research).
-- **Reassignment cost** — the corpus carries a `Reassigned` field that no model
-  currently uses; a cost-sensitive objective could exploit it.
+```bash
+make export && make demo     # then http://127.0.0.1:8000/cascade
+```
 
-## Outputs
+`predict()` requires model 1's `proba_vector` as `category` — it raises rather
+than silently guessing, because the cascade is the architecture.
 
-- `results/artifacts/routing.{npz,json}`
-- `results/tables/_m2_{routing,ablation,heads}.csv`
-- `results/tables/t4_armB_route_{perclass,confusion}.csv`
+Linear SVM has no probabilities, so scores are **softmaxed margins**, labelled
+as such in the interface. That's deliberate: a margin dressed up as a
+probability would show confidence the model never claimed, and the thesis
+recommends routing be a ranked suggestion anyway.
+
+## To extend
+
+- **Top-k routing** — return 2–3 teams with confidence instead of an argmax.
+  This is what the thesis actually recommends and it isn't built yet.
+- **Joint model** — the cascade inherits model 1's error; optimising both
+  together is the natural comparison
+- **Reassignment cost** — the corpus has a `Reassigned` field nothing uses

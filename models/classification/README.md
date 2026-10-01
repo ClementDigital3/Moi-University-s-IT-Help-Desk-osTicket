@@ -1,71 +1,44 @@
-# Model 1 — Ticket classification (context-aware)
+# Model 1 — Ticket classification
 
-**Objective Three / RQ3.** Also supplies the ablation evidence for Objective One / RQ1.
-Chapter Four calls this model **B1**.
-
-Assigns an incoming ticket to one of the seven service categories.
-
-## Architecture
-
-```
-subject + description  (raw, uncleaned)
-        │
-        ├─ contextual sentence embedding        384d, unit norm
-        ├─ department metadata block            one-hot, standardised
-        ├─ temporal context block               cyclic hour / weekday
-        └─ text-shape context block             length, urgency markers
-        │
-        ▼   each auxiliary block enters at a cross-validated weight α
-   classifier head selected from Table 3.2 by 5-fold CV
-        │
-        ▼
-   category  +  class distribution
-```
-
-## Why it comes first
-
-It is the head of the cascade. Both other models consume the category
-distribution it publishes, so it emits **out-of-fold** training probabilities as
-well as held-out ones. Read `shared/artifacts.py` before changing the artifact
-shape — the leakage argument depends on it.
-
-## Run
+Assigns a ticket to one of 7 service categories. Thesis calls this **B1**.
+Head of the cascade: models 2 and 3 both consume what it publishes.
 
 ```bash
-.venv/bin/python -m models.classification.run          # uses cached embeddings + head scores
-.venv/bin/python -m models.classification.run --encoder lsa   # lexical fallback
+make m1
 ```
 
-Cold (no cache) this is ~25 min, dominated by head selection. Warm it is ~12 s.
-Delete `results/cache/heads_Ticket_classification.json` to force re-selection,
-or `results/cache/emb_auto.npz` to re-encode.
+**Input** sentence embedding + department / time / text-shape context blocks
+**Output** `results/artifacts/classification.npz` — predictions, probabilities,
+and out-of-fold training probabilities (the cascade needs these; see NOTES.md)
 
 ## Current result
 
 | | |
 |---|---|
-| Head selected | k-NN (cosine), k=15 |
-| Feature set | semantic text + text-shape context (α=0.1) |
-| Accuracy | **0.8831** |
-| Macro F1 | **0.8793** |
-| Out-of-fold category agreement | **0.8898** |
+| Head | k-NN (cosine), k=15 |
+| Features | semantic text + text-shape (weight 0.1) |
+| Accuracy / macro F1 | **0.8831** / **0.8793** |
+| Out-of-fold agreement | 0.8898 |
 
-The ablation found metadata worth very little once the text is read
-semantically: department +0.0003, temporal +0.0002, text-shape +0.0021. That is
-a real finding for RQ1, not a failure — it means an implementation can be built
-on ticket text alone.
+The ablation found metadata worth almost nothing once text is read semantically
+(department +0.0003, time +0.0002, shape +0.0021). That's a real RQ1 finding: an
+implementation can run on ticket text alone.
 
-## Where to extend
+## Prototype
 
-- **Ablation spec** — `ABLATION_SPEC` at the top of `run.py`. Add a block to
-  `shared/context.py`, then add a row here.
-- **Candidate heads** — `shared/heads.py`. Adding one invalidates the head cache.
-- **Abstention** — the class distribution is already published; thresholding it
-  to route low-confidence tickets to a human is the natural next experiment
-  (Chapter Five recommends it).
+```bash
+make export && make demo     # then http://127.0.0.1:8000/cascade
+```
 
-## Outputs
+`export.py` persists the head, the fitted `ContextFitter` and the selected
+feature set — read from the artifact, so it deploys exactly what was evaluated.
+`predict.py` scores one ticket and returns a `proba_vector` that model 2
+consumes.
 
-- `results/artifacts/classification.{npz,json}` — consumed by models 2 and 3
-- `results/tables/_m1_{classification,ablation,heads}.csv` — merged by `analysis/assemble_tables.py`
-- `results/tables/t4_armB_cls_{perclass,confusion}.csv`
+## To extend
+
+- **Feature blocks** — `ABLATION_SPEC` at the top of `run.py`; add the block to
+  `shared/context.py` first
+- **Classifiers** — `shared/heads.py` (invalidates the head cache)
+- **Abstention** — probabilities are already published; thresholding them to send
+  low-confidence tickets to a human is the obvious next experiment

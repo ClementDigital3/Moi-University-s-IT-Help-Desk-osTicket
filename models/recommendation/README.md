@@ -1,70 +1,51 @@
 # Model 3 — Historical-resolution recommendation
 
-**Objective Four / RQ4.** Chapter Four calls this model **B3**.
-
-Given a new ticket, ranks previously resolved tickets by similarity so the
-resolver can reuse what worked before.
-
-## Architecture
-
-```
-new ticket ──► contextual sentence embedding ─┐
-                                              ├─► blended similarity ──► ranked
-           ──► TF-IDF lexical vector ─────────┘        │                 resolutions
-                                                       │
-           predicted category from model 1 ────────────┘  (optional filter)
-```
-
-This is **retrieval, not classification**. It commits to no single answer — it
-ranks. That is why it is the most forgiving of the three decisions: a resolver
-shown five candidates discards the wrong ones at a glance, whereas a wrong
-routing decision costs a reassignment.
-
-- **Corpus** — training tickets that actually carry a resolution note (3,345).
-- **Relevant** — a retrieved ticket sharing the query's underlying problem.
-- **Blend weight** — chosen by leave-one-out retrieval on the *training* corpus.
-  The held-out queries are never consulted.
-
-## Run
+Ranks previously resolved tickets by similarity so a resolver can reuse what
+worked. Thesis calls this **B3**. Needs model 1 for the category filter.
 
 ```bash
-.venv/bin/python -m models.classification.run    # required upstream (category filter)
-.venv/bin/python -m models.recommendation.run
+make m1 && make m3
 ```
 
-~2 s warm. The embeddings are shared with the other models.
+Retrieval, not classification — it ranks rather than committing. That's why it's
+the most forgiving of the three: a resolver discards wrong candidates at a
+glance, whereas a wrong routing decision costs a reassignment.
+
+Corpus is the 3,345 training tickets carrying a resolution note. The
+semantic/lexical blend weight is chosen by leave-one-out on the *training*
+corpus — held-out queries are never consulted.
 
 ## Current result
 
 | Variant | Top-1 | Top-5 | MRR |
 |---|---|---|---|
-| Semantic retrieval | 0.8766 | 0.9459 | 0.9051 |
-| Semantic + category context | 0.8961 | 0.9199 | 0.9066 |
-| Semantic + lexical hybrid (w=0.5) | 0.8972 | 0.9481 | 0.9175 |
-| **Hybrid + category context** | **0.9102** | 0.9286 | **0.9183** |
+| Semantic | 0.877 | 0.946 | 0.905 |
+| Semantic + category | 0.896 | 0.920 | 0.907 |
+| Hybrid (w=0.5) | 0.897 | 0.948 | 0.918 |
+| **Hybrid + category** | **0.910** | 0.929 | **0.918** |
 
-Two things matter more than the margins. **MRR sits above Top-1 in every
-variant** — when the best match is not first it is usually very close to first,
-which is exactly what a short candidate list needs. And the hybrid beats either
-channel alone: lexical and semantic similarity are complementary here, so the
-blend is not a hedge.
+Two things matter more than the margins. **MRR exceeds Top-1 everywhere** — when
+the best match isn't first it's usually very close, which is what a short
+candidate list needs. And the hybrid beats either channel alone: lexical and
+semantic similarity are complementary here.
 
-This is the one decision where the task-specific model beats the end-to-end
-model outright (Top-1 0.910 vs 0.875, McNemar p=0.00011).
+This is the one decision where Arm B beats Arm A outright (0.910 vs 0.875
+Top-1, p=0.00011).
 
-## Where to extend
+## Prototype
 
-- **Resolution text, not just the ticket** — retrieval currently matches
-  problem descriptions. Indexing the resolution notes as well, or a
-  query-to-resolution bi-encoder, is untried.
-- **Deduplicating the candidate list** — several retrieved tickets often share
-  one underlying problem; collapsing them would show the resolver five
-  *distinct* options instead of five near-copies.
-- **Human relevance assessment** — Table 3.3 allows for it, and the current
-  relevance key is the latent problem id. Real resolver judgements would be
-  stronger evidence.
+```bash
+make export && make demo     # then http://127.0.0.1:8000/cascade
+```
 
-## Outputs
+`predict()` takes model 1's predicted `category` to narrow candidates — the
+variant the evaluation selected. Matches below similarity 0.50 are flagged weak
+and the interface says when the archive has no close precedent.
 
-- `results/artifacts/recommendation.{npz,json}`
-- `results/tables/t413_recommendation_variants.csv`, `_m3_recommendation.csv`
+## To extend
+
+- **Index the resolutions too**, not just problem descriptions
+- **Deduplicate the candidate list** — retrieved tickets often share one
+  underlying problem; collapsing them shows 5 *distinct* options
+- **Human relevance assessment** — Table 3.3 allows it; stronger than the
+  latent-problem-id key used now

@@ -30,7 +30,7 @@ import pandas as pd
 from shared.paths import TABLES, ensure_dirs
 from shared.data import load_splits
 from shared.encoders import build_embeddings
-from shared.context import build_blocks, assemble, unitise
+from shared.context import build_blocks, assemble
 from shared.heads import select_head, ablate, get_head, tune
 from shared.metrics import clf_metrics, per_class_report, conf_matrix_df
 from shared.artifacts import save_artifact, load_artifact
@@ -59,14 +59,15 @@ def main():
     print(f"train={len(tr)}  test={len(te)}")
 
     E_tr, E_te, enc_name, dim, enc_s = build_embeddings(tr, te, args.encoder)
-    blocks = build_blocks(tr, te, E_tr, E_te)
+    blocks, fitter = build_blocks(tr, te, E_tr, E_te)
 
     # ---- the cascade: model 1's category distribution becomes a context block
     up, up_meta = load_artifact("classification")
     print(f"  upstream: model 1 ({up_meta.get('head','?')}), "
           f"out-of-fold category agreement {up_meta.get('oof_category_agreement','?')}")
-    blocks["cat"] = unitise(up["oof_proba"].astype(float),
-                            up["test_proba"].astype(float))
+    # scaling fitted on the OUT-OF-FOLD matrix, applied to held-out predictions
+    blocks["cat"] = (fitter.fit_extra("cat", up["oof_proba"].astype(float)),
+                     fitter.apply_extra("cat", up["test_proba"].astype(float)))
 
     y_tr, y_te = tr[YCOL].values, te[YCOL].values
     classes = sorted(pd.unique(np.concatenate([y_tr, y_te])))

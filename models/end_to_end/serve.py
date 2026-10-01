@@ -20,6 +20,7 @@ from .predict import load, predict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PAGE = os.path.join(HERE, "app.html")
+CASCADE_PAGE = os.path.join(ROOT, "models", "cascade.html")
 # The evidence dashboard is a standalone file, but serving it from here too
 # means the two views are one browsable prototype: no alt-tabbing to a file
 # manager mid-presentation. Read fresh per request so a rebuild shows up
@@ -96,21 +97,60 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, DASH_MISSING, "text/html; charset=utf-8")
             with open(DASHBOARD, "rb") as f:
                 return self._send(200, f.read(), "text/html; charset=utf-8")
+        if path in ("/cascade", "/cascade.html"):
+            with open(CASCADE_PAGE, "r", encoding="utf-8") as f:
+                html = f.read()
+            q = parse_qs(parsed.query)
+            subj = (q.get("subject") or [""])[0]
+            desc = (q.get("description") or [""])[0]
+            if subj or desc:
+                try:
+                    pre = json.dumps(cascade(subj, desc))
+                except Exception as e:
+                    pre = json.dumps({"error": f"{type(e).__name__}: {e}"})
+                html = html.replace(
+                    "</head>", f"<script>window.__PRELOAD__={pre};</script></head>", 1)
+            return self._send(200, html.encode("utf-8"), "text/html; charset=utf-8")
         if path == "/api/examples":
             return self._send(200, json.dumps(EXAMPLES))
         self._send(404, json.dumps({"error": "not found"}))
 
     def do_POST(self):
-        if self.path != "/api/predict":
+        path = urlparse(self.path).path
+        if path not in ("/api/predict", "/api/cascade"):
             return self._send(404, json.dumps({"error": "not found"}))
         try:
             n = int(self.headers.get("Content-Length", 0))
             payload = json.loads(self.rfile.read(n) or b"{}")
-            result = predict(payload.get("subject", ""),
-                             payload.get("description", ""))
-            self._send(200, json.dumps(result))
+            subj, desc = payload.get("subject", ""), payload.get("description", "")
+            if path == "/api/predict":
+                return self._send(200, json.dumps(predict(subj, desc)))
+            return self._send(200, json.dumps(cascade(subj, desc)))
+        except SystemExit as e:                     # a bundle has not been exported
+            self._send(200, json.dumps({"error": str(e)}))
         except Exception as e:                      # keep the demo alive
             self._send(500, json.dumps({"error": f"{type(e).__name__}: {e}"}))
+
+
+def cascade(subject, description):
+    """
+    Run Arm B's three models in their dependency order, keeping the hand-offs
+    visible: model 1 feeds its category distribution to model 2, and its
+    predicted label to model 3 as a retrieval filter.
+    """
+    from shared.serving import ticket_frame
+    from models.classification.predict import predict as p1
+    from models.routing.predict import predict as p2
+    from models.recommendation.predict import predict as p3
+
+    if not (subject or "").strip() and not (description or "").strip():
+        return {"error": "Enter a subject or a description."}
+
+    frame = ticket_frame(subject, description)
+    category = p1(frame=frame)
+    routing = p2(frame=frame, category=category.pop("proba_vector"))
+    retrieval = p3(frame=frame, category=category["label"])
+    return {"category": category, "routing": routing, "retrieval": retrieval}
 
     def log_message(self, fmt, *args):
         if "/api/predict" in (args[0] if args else ""):
@@ -135,6 +175,7 @@ def main():
     url = f"http://{args.host}:{args.port}/"
     srv = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"\n  ICT Help Desk triage prototype running at  {url}")
+    print(f"  Arm B cascade                              {url}cascade")
     print(f"  evidence dashboard                         {url}dashboard"
           + ("" if os.path.exists(DASHBOARD) else "   [not built yet]"))
     print("  press Ctrl+C to stop\n")

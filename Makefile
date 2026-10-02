@@ -8,7 +8,7 @@ PY := .venv/bin/python
 help:
 	@echo ""
 	@echo "  SETUP"
-	@echo "    make setup        install dependencies from the vendored wheels"
+	@echo "    make setup        create .venv and install from requirements.txt"
 	@echo "    make data         regenerate the synthetic corpus (skip if using real data)"
 	@echo ""
 	@echo "  PIPELINE            (make all runs everything in order)"
@@ -41,8 +41,9 @@ help:
 	@echo ""
 
 setup:
-	$(PY) -m pip install --no-index --find-links=wheels \
-	  scikit-learn xgboost pandas matplotlib sentence-transformers python-docx joblib
+	python3 -m venv .venv
+	$(PY) -m pip install --upgrade pip
+	$(PY) -m pip install -r requirements.txt
 
 data:      ; $(PY) tools/generate_dataset.py
 prep:      ; $(PY) -m analysis.preprocess

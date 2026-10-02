@@ -1,0 +1,28 @@
+# Direct dependencies, pinned to the versions the reported results were produced
+# with, so a fresh clone reproduces Chapter Four exactly.
+#
+#   python3 -m venv .venv
+#   .venv/bin/pip install -r requirements.txt
+#
+# Built and tested on Python 3.12.
+
+# The CPU build of PyTorch. Without this line pip takes the default PyPI wheel,
+# which drags in ~3 GB of CUDA packages for a project that never touches a GPU.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.14.0+cpu
+
+# --- modelling ---------------------------------------------------------
+scikit-learn==1.9.1
+xgboost==3.4.1
+pandas==3.0.5
+numpy==2.5.3
+scipy==1.18.1
+joblib==1.6.0
+
+# --- contextual representation (Arm B) ---------------------------------
+sentence-transformers==6.0.1
+transformers==5.17.0
+
+# --- figures and the thesis document ------------------------------------
+matplotlib==3.11.2
+python-docx==1.2.0

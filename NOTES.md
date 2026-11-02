@@ -42,6 +42,26 @@ match the thesis numbers. `analysis/write_chapters.py` assigns Chapter Four
 numbers by order of appearance and is the single source of truth. Don't renumber
 the CSVs.
 
+## The human in the loop
+
+The models suggest; the resolver decides. Every page that shows a suggestion
+offers **Accept** and an **override** control, and clicking either records the
+pair — what was suggested, and what was chosen — to `results/decisions.jsonl`.
+
+That difference is the **override rate**, shown live in the "This session" panel.
+It is the resolver-facing measure Section 5.4.2 asks future work to use instead
+of classification metrics alone, and it only means anything because the
+confirmation step actually exists rather than being implied.
+
+`shared/decisions.py` owns the log; `window.Decisions` in `shared/ui.js` owns the
+client side, so accept and override mean the same thing wherever they are
+clicked.
+
+**`ui.js` must not be deferred.** It defines `window.Decisions`, which the inline
+page scripts use during initial render. With `defer` it executed after them and
+every call threw silently — the session tally never populated and nothing said
+why.
+
 ## Cache files
 
 | File | Delete to |

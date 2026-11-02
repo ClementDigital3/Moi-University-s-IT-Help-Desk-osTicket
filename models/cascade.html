@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Arm B — The cascade</title>
 <link rel="stylesheet" href="/static/ui.css">
-<script src="/static/ui.js" defer></script>
+<!-- not deferred: the inline page script uses window.Decisions -->
+<script src="/static/ui.js"></script>
 <style>
   /* page-specific: the connector that makes the chain visible */
   .stage{background:var(--surface);border:1px solid var(--border);
@@ -67,6 +68,13 @@
         <label style="margin-top:14px">Try an example</label>
         <div class="chips" id="chips"></div>
       </div>
+      <div class="card">
+        <h2>This session</h2>
+        <div class="tally" id="tally"><span class="t">No decisions recorded yet.</span></div>
+        <div class="hint" style="margin-top:10px">What the resolver accepted versus
+          overrode &mdash; the operational measure Chapter Five asks for, rather than
+          classification metrics alone.</div>
+      </div>
     </aside>
 
     <section class="pane" id="out">
@@ -100,15 +108,18 @@ fetch("/api/examples").then(r => r.json()).then(xs => {
   });
 }).catch(() => {});
 
-function ranked(rows, n){
+function ranked(rows, n, pick){
   const max = Math.max(...rows.map(r => r.score), 1e-9);
   return `<div class="rank">${rows.slice(0, n).map((r, i) => `
-    <div class="rrow ${i === 0 ? "top" : ""}">
+    <div class="rrow ${i === 0 ? "top" : ""} ${pick ? "pick" : ""}"
+         ${pick ? `data-team="${esc(r.label)}" title="Assign to ${esc(r.label)}"` : ""}>
       <span class="nm">${esc(r.label)}</span>
       <span class="tr"><i style="width:${Math.max(2, r.score / max * 100)}%"></i></span>
       <span class="sc">${r.score.toFixed(2)}</span>
     </div>`).join("")}</div>`;
 }
+
+let LAST = null;
 
 function render(d){
   const out = $("#out");
@@ -127,6 +138,15 @@ function render(d){
     <div class="dmeta">confidence <b>${pct(c.confidence)}</b> &middot; next best:
       ${esc(c.runner_up)} (${pct(c.runner_up_confidence)})</div>
     <span class="feeds">&darr; feeds its full distribution to B2, its label to B3</span>
+    <div class="actions">
+      <span class="lbl">Category</span>
+      <button class="act primary" data-act="cat-accept">Accept</button>
+      <select class="override" id="catpick" aria-label="Override category">
+        <option value="">Override&hellip;</option>
+        ${c.distribution.map(x => `<option>${esc(x.label)}</option>`).join("")}
+      </select>
+    </div>
+    <div id="cat-done"></div>
   </div>`;
 
   const margin = r.score_type === "margin";
@@ -135,7 +155,16 @@ function render(d){
       <span class="sname">Resolver team &middot; B2</span>
       <span class="smodel">${esc(r.model)}</span></div>
     <div class="dlabel">${esc(r.label)}</div>
-    ${ranked(r.ranked, 3)}
+    ${ranked(r.ranked, 3, true)}
+    <div class="actions">
+      <span class="lbl">Assign to</span>
+      <button class="act primary" data-act="team-accept">Accept ${esc(r.label)}</button>
+      <select class="override" id="teampick" aria-label="Assign to another team">
+        <option value="">Another team&hellip;</option>
+        ${r.ranked.map(x => `<option>${esc(x.label)}</option>`).join("")}
+      </select>
+    </div>
+    <div id="team-done"></div>
     <div class="hint">${margin
       ? "Relative scores from the classifier's margins, not probabilities — the thesis recommends routing be offered as a ranked suggestion, not an assignment."
       : "Probabilities from the classifier."}${r.cascaded
@@ -161,10 +190,14 @@ function render(d){
       <td><div><span class="tag">${esc(m.category)}</span><span class="tag">${esc(m.team)}</span></div>
         <div style="font-weight:600;margin-top:3px">${esc(m.subject)}</div>
         <div class="res">${esc(m.resolution)}</div></td>
-      <td class="sim ${m.weak ? "weak" : ""}">${m.similarity.toFixed(3)}</td>
+      <td class="sim ${m.weak ? "weak" : ""}">${m.similarity.toFixed(3)}
+        <div><button class="act act-sm" data-use="${esc(m.ticket_id)}"
+          style="margin-top:6px">Use this</button></div></td>
     </tr>`).join("")}</tbody></table>
+    <div id="res-done"></div>
   </div>`;
 
+  LAST = d;
   out.innerHTML = s1 + s2 + s3;
   out.scrollTop = 0;
 }
@@ -180,6 +213,67 @@ function render(d){
   else $("#f").requestSubmit();
 })();
 
+
+/* ---------------------------------------------------------------------
+   The resolver acts. Every click records what was suggested alongside what
+   was chosen, so the difference between them is measurable afterwards.
+   --------------------------------------------------------------------- */
+function base(){
+  return {
+    arm: "B",
+    subject: $("#subject").value,
+    description: $("#description").value,
+    suggested_category: LAST && LAST.category.label,
+    suggested_team: LAST && LAST.routing.label,
+    confidence_category: LAST && LAST.category.confidence,
+    confidence_team: LAST && LAST.routing.confidence,
+  };
+}
+
+async function decideCategory(chosen){
+  const b = base();
+  await Decisions.send({...b, chosen_category: chosen});
+  const el = $("#cat-done");
+  if (el) el.innerHTML = Decisions.confirmation("Category", b.suggested_category, chosen);
+  refreshTally();
+}
+
+async function decideTeam(chosen){
+  const b = base();
+  await Decisions.send({...b, chosen_team: chosen});
+  const el = $("#team-done");
+  if (el) el.innerHTML = Decisions.confirmation("Assignment", b.suggested_team, chosen);
+  refreshTally();
+}
+
+async function reuse(ticketId){
+  await Decisions.send({...base(), resolution_used: ticketId});
+  const el = $("#res-done");
+  if (el) el.innerHTML = `<div class="recorded"><span>&#10003;</span>
+    <span>Resolution from <b>${Decisions.esc(ticketId)}</b> recorded as reused.</span></div>`;
+  refreshTally();
+}
+
+$("#out").addEventListener("click", e => {
+  const row = e.target.closest(".rrow.pick");
+  if (row) return decideTeam(row.dataset.team);
+  const b = e.target.closest("[data-act],[data-use]");
+  if (!b) return;
+  if (b.dataset.use) return reuse(b.dataset.use);
+  if (b.dataset.act === "cat-accept") return decideCategory(LAST.category.label);
+  if (b.dataset.act === "team-accept") return decideTeam(LAST.routing.label);
+});
+$("#out").addEventListener("change", e => {
+  if (e.target.id === "catpick" && e.target.value) decideCategory(e.target.value);
+  if (e.target.id === "teampick" && e.target.value) decideTeam(e.target.value);
+});
+
+async function refreshTally(){
+  const el = $("#tally"); if (!el) return;
+  el.innerHTML = Decisions.tally(await Decisions.summary());
+}
+refreshTally();
+
 $("#f").addEventListener("submit", async e => {
   e.preventDefault();
   const go = $("#go");
@@ -194,6 +288,10 @@ $("#f").addEventListener("submit", async e => {
     $("#out").innerHTML = `<div class="card"><div class="err">${esc(err)}</div></div>`;
   } finally { go.disabled = false; go.textContent = "Run the cascade"; }
 });
+
+
+
+
 </script>
 </body>
 </html>

@@ -144,6 +144,9 @@ class Handler(BaseHTTPRequestHandler):
                     inject += f'window.__PRELOAD__={json.dumps({"error": str(e)})};'
             html = html.replace("</head>", f"<script>{inject}</script></head>", 1)
             return self._send(200, html.encode("utf-8"), "text/html; charset=utf-8")
+        if path == "/api/decisions":
+            from shared.decisions import summary
+            return self._send(200, json.dumps(summary()))
         if path.startswith("/api/card/"):
             name = path.rsplit("/", 1)[-1]
             if name not in MODEL_ROUTES.values():
@@ -159,13 +162,17 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         path = urlparse(self.path).path
         model_api = path.rsplit("/", 1)[-1] if path.startswith("/api/model/") else None
-        if path not in ("/api/predict", "/api/cascade") and \
+        if path not in ("/api/predict", "/api/cascade", "/api/decision") and \
                 model_api not in MODEL_ROUTES.values():
             return self._send(404, json.dumps({"error": "not found"}))
         try:
             n = int(self.headers.get("Content-Length", 0))
             payload = json.loads(self.rfile.read(n) or b"{}")
             subj, desc = payload.get("subject", ""), payload.get("description", "")
+            if path == "/api/decision":
+                from shared.decisions import record, summary
+                record({**payload, "subject": subj, "description": desc})
+                return self._send(200, json.dumps({"ok": True, "summary": summary()}))
             if path == "/api/predict":
                 return self._send(200, json.dumps(predict(subj, desc)))
             if model_api:

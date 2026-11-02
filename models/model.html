@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Arm B — model</title>
 <link rel="stylesheet" href="/static/ui.css">
-<script src="/static/ui.js" defer></script>
+<!-- not deferred: the inline page script uses window.Decisions -->
+<script src="/static/ui.js"></script>
 <style>
   /* page-specific: the model card */
   .mc dl{margin:0}
@@ -59,6 +60,9 @@
         </form>
         <label style="margin-top:14px">Try an example</label>
         <div class="chips" id="chips"></div>
+      </div>
+      <div class="card"><h2>This session</h2>
+        <div class="tally" id="tally"><span class="t">No decisions recorded yet.</span></div>
       </div>
       <div class="card mc" id="mcard"><h2>The model</h2>
         <div class="empty" style="padding:14px">loading&hellip;</div></div>
@@ -145,6 +149,15 @@ const RENDER = {
     </div>
     <div class="card"><h2>Across all ${r.distribution.length} categories</h2>
       ${ranked(r.distribution, r.distribution.length, 1)}
+      <div class="actions">
+        <span class="lbl">Category</span>
+        <button class="act primary" data-act="accept">Accept ${esc(r.label)}</button>
+        <select class="override" id="pick" aria-label="Override category">
+          <option value="">Override&hellip;</option>
+          ${r.distribution.map(x => `<option>${esc(x.label)}</option>`).join("")}
+        </select>
+      </div>
+      <div id="done"></div>
       <div class="hint">A full distribution, not just a label. Thresholding it to
         send low-confidence tickets to a human — rather than always answering — is
         the abstention experiment Chapter Five recommends.</div>
@@ -162,6 +175,15 @@ const RENDER = {
     </div>
     <div class="card"><h2>All ${r.ranked.length} teams, ranked</h2>
       ${ranked(r.ranked, r.ranked.length)}
+      <div class="actions">
+        <span class="lbl">Assign to</span>
+        <button class="act primary" data-act="accept">Accept ${esc(r.label)}</button>
+        <select class="override" id="pick" aria-label="Assign to another team">
+          <option value="">Another team&hellip;</option>
+          ${r.ranked.map(x => `<option>${esc(x.label)}</option>`).join("")}
+        </select>
+      </div>
+      <div id="done"></div>
       <div class="hint">${margin
         ? "Relative scores from the classifier's margins — not probabilities. A margin dressed up as a probability would claim confidence the model never had."
         : "Probabilities from the classifier."}
@@ -189,8 +211,11 @@ const RENDER = {
         <td><div><span class="tag">${esc(m.category)}</span><span class="tag">${esc(m.team)}</span></div>
           <div style="font-weight:600;margin-top:3px">${esc(m.subject)}</div>
           <div class="res">${esc(m.resolution)}</div></td>
-        <td class="sim ${m.weak ? "weak" : ""}">${m.similarity.toFixed(3)}</td>
+        <td class="sim ${m.weak ? "weak" : ""}">${m.similarity.toFixed(3)}
+          <div><button class="act act-sm" data-use="${esc(m.ticket_id)}"
+            style="margin-top:6px">Use this</button></div></td>
       </tr>`).join("")}</tbody></table>
+      <div id="done"></div>
       <div class="hint">It ranks rather than committing, which is why it fails
         gracefully: a wrong candidate costs a glance, a wrong routing decision
         costs a reassignment.</div>
@@ -198,12 +223,15 @@ const RENDER = {
   },
 };
 
+let LAST = null;
+
 function render(d){
   const out = $("#out");
   if (!d || d.error) {
     out.innerHTML = `<div class="card"><div class="err">${esc(d && d.error || "No result")}</div></div>`;
     return;
   }
+  LAST = d;
   out.innerHTML = RENDER[MODEL](d);
   out.scrollTop = 0;
 }
@@ -216,6 +244,57 @@ function render(d){
   if (window.__PRELOAD__) render(window.__PRELOAD__);
   else $("#f").requestSubmit();
 })();
+
+
+/* ---------------------------------------------------------------------
+   The resolver acts. Each page records the decision its own model is
+   responsible for, against what that model suggested.
+   --------------------------------------------------------------------- */
+function base(){
+  const r = LAST && LAST.result, up = LAST && LAST.upstream;
+  const b = {arm: "B", subject: $("#subject").value, description: $("#description").value};
+  if (MODEL === "classification") {
+    b.suggested_category = r && r.label; b.confidence_category = r && r.confidence;
+  } else {
+    b.suggested_category = up && up.label;
+    if (MODEL === "routing") { b.suggested_team = r && r.label; b.confidence_team = r && r.confidence; }
+  }
+  return b;
+}
+
+async function decide(kind, chosen){
+  const b = base();
+  const payload = {...b};
+  if (kind === "Category") payload.chosen_category = chosen;
+  if (kind === "Assignment") payload.chosen_team = chosen;
+  if (kind === "Resolution") payload.resolution_used = chosen;
+  await Decisions.send(payload);
+  const el = $("#done");
+  if (el) el.innerHTML = kind === "Resolution"
+    ? `<div class="recorded"><span>&#10003;</span><span>Resolution from
+       <b>${Decisions.esc(chosen)}</b> recorded as reused.</span></div>`
+    : Decisions.confirmation(kind,
+        kind === "Category" ? b.suggested_category : b.suggested_team, chosen);
+  refreshTally();
+}
+
+const KIND = {classification: "Category", routing: "Assignment", recommendation: "Resolution"};
+
+$("#out").addEventListener("click", e => {
+  const u = e.target.closest("[data-use]");
+  if (u) return decide("Resolution", u.dataset.use);
+  const b = e.target.closest('[data-act="accept"]');
+  if (b) return decide(KIND[MODEL], LAST.result.label);
+});
+$("#out").addEventListener("change", e => {
+  if (e.target.id === "pick" && e.target.value) decide(KIND[MODEL], e.target.value);
+});
+
+async function refreshTally(){
+  const el = $("#tally"); if (!el) return;
+  el.innerHTML = Decisions.tally(await Decisions.summary());
+}
+refreshTally();
 
 $("#f").addEventListener("submit", async e => {
   e.preventDefault();
@@ -231,6 +310,7 @@ $("#f").addEventListener("submit", async e => {
     $("#out").innerHTML = `<div class="card"><div class="err">${esc(err)}</div></div>`;
   } finally { go.disabled = false; go.textContent = "Run this model"; }
 });
+
 </script>
 </body>
 </html>

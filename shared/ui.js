@@ -28,3 +28,54 @@
     document.addEventListener("DOMContentLoaded", start);
   else start();
 })();
+
+/* =====================================================================
+   Recording what the resolver decided.
+
+   Every page that shows a suggestion uses these, so "accept" and
+   "override" mean the same thing and are measured the same way wherever
+   they are clicked.
+   ===================================================================== */
+window.Decisions = (function(){
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g,
+    c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+  async function send(payload){
+    try {
+      const r = await fetch("/api/decision", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload)
+      });
+      const d = await r.json();
+      dispatchEvent(new CustomEvent("decision", {detail: d}));
+      return d;
+    } catch (e) {
+      return {error: String(e)};
+    }
+  }
+
+  /* A confirmation the resolver can actually read: what was suggested, what
+     they chose, and whether those differ. */
+  function confirmation(kind, suggested, chosen){
+    const over = suggested && chosen && suggested !== chosen;
+    return `<div class="recorded ${over ? "over" : ""}">
+      <span>${over ? "&#9998;" : "&#10003;"}</span>
+      <span>${over
+        ? `${esc(kind)} <b>overridden</b> &mdash; suggested ${esc(suggested)},
+           recorded <b>${esc(chosen)}</b>.`
+        : `${esc(kind)} <b>accepted</b> &mdash; recorded <b>${esc(chosen)}</b>.`}
+      </span></div>`;
+  }
+
+  function tally(s){
+    if (!s || !s.total) return `<span class="t">No decisions recorded yet.</span>`;
+    const pc = v => v == null ? "&mdash;" : (v * 100).toFixed(0) + "%";
+    return `<span class="t"><b>${s.total}</b>decided</span>
+      <span class="t"><b>${pc(s.category.accept_rate)}</b>category accepted</span>
+      <span class="t"><b>${pc(s.team.accept_rate)}</b>team accepted</span>
+      <span class="t"><b>${s.resolutions_reused}</b>resolutions reused</span>`;
+  }
+
+  const summary = () => fetch("/api/decisions").then(r => r.json()).catch(() => null);
+  return {send, confirmation, tally, summary, esc};
+})();

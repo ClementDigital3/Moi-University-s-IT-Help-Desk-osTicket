@@ -17,8 +17,9 @@ results/deploy/
 results/predictions/
 results/artifacts/
 
-# Run logs
+# Run logs and runtime state
 *.log
+results/decisions.jsonl
 
 # Editor / OS
 .DS_Store

@@ -33,6 +33,11 @@ Three views, one server:
 | `/cascade` | **Arm B** — B1 → B2 → B3 chained |
 | `/dashboard` | the findings, with a present mode (`P` or `?present`) |
 
+Every suggestion carries **Accept** and **override** controls. Clicking either
+records what was suggested against what was chosen, and the running override
+rate appears in the session panel — the operational measure Chapter Five asks
+for. The log is `results/decisions.jsonl`.
+
 Each model page carries a model card — approach, features, representation and
 its held-out metrics — so a single model can be presented without the others.
 

@@ -175,11 +175,24 @@ const RENDER = {
     </div>
     <div class="card"><h2>All ${r.ranked.length} teams, ranked</h2>
       ${ranked(r.ranked, r.ranked.length)}
+      ${r.abstain ? `<div class="warnbar" style="margin:12px 0 0">
+          <b>The model declines to assign this one.</b> Best score
+          ${r.confidence.toFixed(3)}, below the ${r.abstain_below} threshold.
+          Declining the least-confident tickets lifts accuracy on the rest from
+          0.729 to 0.787; these are disproportionately first-line work.
+        </div>` : ""}
       <div class="actions">
         <span class="lbl">Assign to</span>
-        <button class="act primary" data-act="accept">Accept ${esc(r.label)}</button>
+        ${r.abstain
+          ? `<button class="act primary" data-act="first-line">Send to ${esc(r.first_line)}</button>
+             <button class="act" data-act="accept">Assign ${esc(r.label)} anyway</button>`
+          : `<button class="act primary" data-act="accept">Accept ${esc(r.label)}</button>`}
         <select class="override" id="pick" aria-label="Assign to another team">
           <option value="">Another team&hellip;</option>
+          ${r.ranked.map(x => `<option>${esc(x.label)}</option>`).join("")}
+        </select>
+        <select class="override" id="referpick" aria-label="Refer to another resolver">
+          <option value="">Refer on&hellip;</option>
           ${r.ranked.map(x => `<option>${esc(x.label)}</option>`).join("")}
         </select>
       </div>
@@ -203,6 +216,18 @@ const RENDER = {
       <h2>Most similar resolved tickets</h2>
       ${x.category_filtered ? `<div class="hint" style="margin:0 0 10px">Candidates
         narrowed to <b>${esc(d.upstream.label)}</b> — the category B1 predicted.</div>` : ""}
+      ${x.duplicate_of ? `<div class="notice" style="margin-bottom:11px">
+          <b>Possible duplicate.</b> This looks like
+          <b>${esc(x.duplicate_of.ticket_id)}</b> &mdash;
+          &ldquo;${esc(x.duplicate_of.subject)}&rdquo; at similarity
+          ${x.duplicate_of.similarity.toFixed(3)}, above the ${x.duplicate_above}
+          mark where every flagged pair in the held-out set shared the same
+          underlying problem.
+          <div style="margin-top:8px">
+            <button class="act primary act-sm" data-dup="${esc(x.duplicate_of.ticket_id)}">
+              Close as duplicate</button>
+          </div>
+        </div>` : ""}
       ${warn}
       <table><thead><tr><th style="width:92px">Ticket</th>
         <th>Problem &amp; resolution</th><th style="width:66px">Match</th></tr></thead><tbody>
@@ -266,7 +291,10 @@ async function decide(kind, chosen){
   const b = base();
   const payload = {...b};
   if (kind === "Category") payload.chosen_category = chosen;
-  if (kind === "Assignment") payload.chosen_team = chosen;
+  if (kind === "Assignment") {
+    payload.chosen_team = chosen;
+    payload.abstained = !!(LAST && LAST.result && LAST.result.abstain);
+  }
   if (kind === "Resolution") payload.resolution_used = chosen;
   await Decisions.send(payload);
   const el = $("#done");
@@ -280,14 +308,37 @@ async function decide(kind, chosen){
 
 const KIND = {classification: "Category", routing: "Assignment", recommendation: "Resolution"};
 
+async function referOn(team){
+  const b = base();
+  await Decisions.send({...b, chosen_team: b.suggested_team, referred_to: team});
+  const el = $("#done");
+  if (el) el.innerHTML = `<div class="recorded over"><span>&#8594;</span>
+    <span>Referred on to <b>${Decisions.esc(team)}</b> &mdash; recorded as a
+    reassignment, not a first-time match.</span></div>`;
+  refreshTally();
+}
+
+async function closeDuplicate(id){
+  await Decisions.send({...base(), closed_as_duplicate_of: id});
+  const el = $("#done");
+  if (el) el.innerHTML = `<div class="recorded"><span>&#10003;</span>
+    <span>Closed as a duplicate of <b>${Decisions.esc(id)}</b>.</span></div>`;
+  refreshTally();
+}
+
 $("#out").addEventListener("click", e => {
   const u = e.target.closest("[data-use]");
   if (u) return decide("Resolution", u.dataset.use);
+  const d = e.target.closest("[data-dup]");
+  if (d) return closeDuplicate(d.dataset.dup);
+  const fl = e.target.closest('[data-act="first-line"]');
+  if (fl) return decide(KIND[MODEL], LAST.result.first_line);
   const b = e.target.closest('[data-act="accept"]');
   if (b) return decide(KIND[MODEL], LAST.result.label);
 });
 $("#out").addEventListener("change", e => {
   if (e.target.id === "pick" && e.target.value) decide(KIND[MODEL], e.target.value);
+  if (e.target.id === "referpick" && e.target.value) referOn(e.target.value);
 });
 
 async function refreshTally(){

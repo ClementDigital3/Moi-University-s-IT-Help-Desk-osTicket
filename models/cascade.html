@@ -155,12 +155,25 @@ function render(d){
       <span class="sname">Resolver team &middot; B2</span>
       <span class="smodel">${esc(r.model)}</span></div>
     <div class="dlabel">${esc(r.label)}</div>
+    ${r.abstain ? `<div class="warnbar" style="margin:10px 0 0">
+        <b>The model declines to assign this one.</b> Its best score is
+        ${r.confidence.toFixed(3)}, below the ${r.abstain_below} threshold.
+        Declining the least-confident tickets raises accuracy on the rest from
+        0.729 to 0.787, and these are disproportionately first-line work.
+      </div>` : ""}
     ${ranked(r.ranked, 3, true)}
     <div class="actions">
       <span class="lbl">Assign to</span>
-      <button class="act primary" data-act="team-accept">Accept ${esc(r.label)}</button>
+      ${r.abstain
+        ? `<button class="act primary" data-act="first-line">Send to ${esc(r.first_line)}</button>
+           <button class="act" data-act="team-accept">Assign ${esc(r.label)} anyway</button>`
+        : `<button class="act primary" data-act="team-accept">Accept ${esc(r.label)}</button>`}
       <select class="override" id="teampick" aria-label="Assign to another team">
         <option value="">Another team&hellip;</option>
+        ${r.ranked.map(x => `<option>${esc(x.label)}</option>`).join("")}
+      </select>
+      <select class="override" id="referpick" aria-label="Refer to another resolver">
+        <option value="">Refer on&hellip;</option>
         ${r.ranked.map(x => `<option>${esc(x.label)}</option>`).join("")}
       </select>
     </div>
@@ -182,6 +195,17 @@ function render(d){
     ${x.category_filtered
       ? `<div class="hint" style="margin:0 0 8px">Candidates narrowed to
          <b>${esc(c.label)}</b> — the category B1 predicted.</div>` : ""}
+    ${x.duplicate_of ? `<div class="notice" style="margin-bottom:11px">
+        <b>Possible duplicate.</b> This looks like
+        <b>${esc(x.duplicate_of.ticket_id)}</b> &mdash; &ldquo;${esc(x.duplicate_of.subject)}&rdquo;
+        at similarity ${x.duplicate_of.similarity.toFixed(3)}, above the
+        ${x.duplicate_above} mark where every flagged pair in the held-out set
+        shared the same underlying problem.
+        <div style="margin-top:8px">
+          <button class="act primary act-sm" data-dup="${esc(x.duplicate_of.ticket_id)}">
+            Close as duplicate of ${esc(x.duplicate_of.ticket_id)}</button>
+        </div>
+      </div>` : ""}
     ${warn}
     <table><thead><tr><th style="width:92px">Ticket</th>
       <th>Problem &amp; resolution</th><th style="width:66px">Match</th></tr></thead><tbody>
@@ -238,11 +262,30 @@ async function decideCategory(chosen){
   refreshTally();
 }
 
-async function decideTeam(chosen){
+async function decideTeam(chosen, viaAbstain){
   const b = base();
-  await Decisions.send({...b, chosen_team: chosen});
+  await Decisions.send({...b, chosen_team: chosen,
+                        abstained: !!(viaAbstain || (LAST && LAST.routing.abstain))});
   const el = $("#team-done");
   if (el) el.innerHTML = Decisions.confirmation("Assignment", b.suggested_team, chosen);
+  refreshTally();
+}
+
+async function referOn(team){
+  const b = base();
+  await Decisions.send({...b, chosen_team: b.suggested_team, referred_to: team});
+  const el = $("#team-done");
+  if (el) el.innerHTML = `<div class="recorded over"><span>&#8594;</span>
+    <span>Referred on to <b>${Decisions.esc(team)}</b> &mdash; recorded as a
+    reassignment, not a first-time match.</span></div>`;
+  refreshTally();
+}
+
+async function closeDuplicate(ticketId){
+  await Decisions.send({...base(), closed_as_duplicate_of: ticketId});
+  const el = $("#res-done");
+  if (el) el.innerHTML = `<div class="recorded"><span>&#10003;</span>
+    <span>Closed as a duplicate of <b>${Decisions.esc(ticketId)}</b>.</span></div>`;
   refreshTally();
 }
 
@@ -257,15 +300,18 @@ async function reuse(ticketId){
 $("#out").addEventListener("click", e => {
   const row = e.target.closest(".rrow.pick");
   if (row) return decideTeam(row.dataset.team);
-  const b = e.target.closest("[data-act],[data-use]");
+  const b = e.target.closest("[data-act],[data-use],[data-dup]");
   if (!b) return;
   if (b.dataset.use) return reuse(b.dataset.use);
+  if (b.dataset.dup) return closeDuplicate(b.dataset.dup);
   if (b.dataset.act === "cat-accept") return decideCategory(LAST.category.label);
   if (b.dataset.act === "team-accept") return decideTeam(LAST.routing.label);
+  if (b.dataset.act === "first-line") return decideTeam(LAST.routing.first_line, true);
 });
 $("#out").addEventListener("change", e => {
   if (e.target.id === "catpick" && e.target.value) decideCategory(e.target.value);
   if (e.target.id === "teampick" && e.target.value) decideTeam(e.target.value);
+  if (e.target.id === "referpick" && e.target.value) referOn(e.target.value);
 });
 
 async function refreshTally(){
@@ -288,6 +334,7 @@ $("#f").addEventListener("submit", async e => {
     $("#out").innerHTML = `<div class="card"><div class="err">${esc(err)}</div></div>`;
   } finally { go.disabled = false; go.textContent = "Run the cascade"; }
 });
+
 
 
 

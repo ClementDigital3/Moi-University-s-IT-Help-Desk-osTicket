@@ -62,6 +62,21 @@ page scripts use during initial render. With `defer` it executed after them and
 every call threw silently — the session tally never populated and nothing said
 why.
 
+## Calibrated thresholds
+
+Three numbers in the prototype are operating points, measured on the held-out
+set rather than chosen:
+
+| Threshold | Where | What it buys |
+|---|---|---|
+| **0.30** routing margin | `models/routing/predict.py` | below it the model declines; raises accuracy on the rest from 0.729 to 0.787, and the declined pile is 1.33× enriched for first-line work |
+| **0.85** retrieval similarity | `models/recommendation/predict.py` | flags a possible duplicate; every flagged pair in the held-out set shared the same underlying problem (n=47) |
+| **0.50** retrieval similarity | same | below it, the archive has no close precedent and the page says so |
+
+`analysis/abstention.py` regenerates the first as Table 4.17. Re-run it if the
+model or the corpus changes — the numbers in Chapter Four come from that table,
+not from these notes.
+
 ## Cache files
 
 | File | Delete to |

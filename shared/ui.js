@@ -70,10 +70,18 @@ window.Decisions = (function(){
   function tally(s){
     if (!s || !s.total) return `<span class="t">No decisions recorded yet.</span>`;
     const pc = v => v == null ? "&mdash;" : (v * 100).toFixed(0) + "%";
-    return `<span class="t"><b>${s.total}</b>decided</span>
-      <span class="t"><b>${pc(s.category.accept_rate)}</b>category accepted</span>
-      <span class="t"><b>${pc(s.team.accept_rate)}</b>team accepted</span>
-      <span class="t"><b>${s.resolutions_reused}</b>resolutions reused</span>`;
+    const bits = [
+      `<b>${s.total}</b>decided`,
+      `<b>${pc(s.category.accept_rate)}</b>category accepted`,
+      `<b>${pc(s.team.accept_rate)}</b>team accepted`,
+    ];
+    // The measures Section 5.4.2 asks for, shown only once they have happened
+    // so an empty session does not read as a row of zeroes.
+    if (s.referral_rate != null) bits.push(`<b>${pc(s.referral_rate)}</b>referred on`);
+    if (s.abstained) bits.push(`<b>${s.abstained}</b>declined to first line`);
+    if (s.closed_as_duplicate) bits.push(`<b>${s.closed_as_duplicate}</b>closed as duplicate`);
+    if (s.resolutions_reused) bits.push(`<b>${s.resolutions_reused}</b>resolutions reused`);
+    return bits.map(b => `<span class="t">${b}</span>`).join("");
   }
 
   const summary = () => fetch("/api/decisions").then(r => r.json()).catch(() => null);

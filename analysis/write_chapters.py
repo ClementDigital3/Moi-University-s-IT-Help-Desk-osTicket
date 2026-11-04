@@ -61,6 +61,7 @@ def load_results():
                    ("rep", "t411_representation.csv"), ("heads", "t412_armB_head_selection.csv"),
                    ("recvar", "t413_recommendation_variants.csv"),
                    ("branch", "t414_branch_vs_combined.csv"),
+                   ("abstain", "t417_abstention.csv"),
                    ("clsA", "t4_armA_cls_perclass.csv"), ("rteA", "t4_armA_route_perclass.csv"),
                    ("clsB", "t4_armB_cls_perclass.csv"), ("rteB", "t4_armB_route_perclass.csv")):
         p = os.path.join(TABLES, f)
@@ -702,6 +703,39 @@ def s45(w, R):
                 cols=["Class", "Precision", "Recall", "F1", "Support"],
                 fontsize=9.5, first_col_w=3000)
 
+    # the worst number in the chapter deserves to be named
+    fl = "Help Desk (Tier 1)"
+    rows = {}
+    for key, arm in (("rteA", "end-to-end"), ("rteB", "task-specific")):
+        d = R.get(key)
+        if d is not None and fl in set(d["Class"]):
+            r = d[d["Class"] == fl].iloc[0]
+            rows[arm] = (float(r["F1"]), float(r["Recall"]), int(r["Support"]))
+    if rows:
+        a = rows.get("end-to-end"); b = rows.get("task-specific")
+        n = (a or b)[2]
+        w.para(
+            f"One row of Tables 4.11 and 4.12 requires comment, because it is the "
+            f"weakest result anywhere in this study and it is not an artefact of "
+            f"averaging. The first-line team, Help Desk (Tier 1), accounts for {n} of "
+            f"the {R['meta']['n_test']:,} held-out tickets and is recovered almost not at "
+            f"all: an F1 of "
+            + (f"{a[0]:.3f} under the end-to-end model and {b[0]:.3f} under the "
+               f"task-specific one, at recalls of {a[1]:.3f} and {b[1]:.3f} "
+               if a and b else f"{(a or b)[0]:.3f} ")
+            + "respectively. Every other team is recovered at an F1 above 0.72.")
+        w.para(
+            "The explanation is visible in the conceptual structure of the task rather "
+            "than in the models. First line is not a subject-matter team: it is where "
+            "tickets go when the subject matter is not yet established. Its tickets "
+            "therefore have no distinguishing vocabulary of their own, because what "
+            "they have in common is the absence of the detail that would route them "
+            "elsewhere. A classifier trained to separate teams by what their tickets "
+            "say cannot isolate a team defined by what its tickets fail to say. This "
+            "is the same ceiling identified in Section 4.7, seen from the routing "
+            "side, and it is the single clearest limitation of treating routing as "
+            "flat multi-class classification.")
+
 
 def s46(w, R):
     ra, rb = R["recA"].iloc[0], R["recB"].iloc[0]
@@ -828,6 +862,83 @@ def s47(w, R):
         "resolver can act on, whereas a list of similar past tickets and how they were "
         "resolved is simultaneously the recommendation and the justification. For "
         "decision support, as distinct from automation, that difference is substantial.")
+    if R.get("abstain") is not None:
+        ab = R["abstain"]
+        full = ab[ab["Threshold"] == 0.0]
+        base = float(full["Accuracy (answered)"].iloc[0]) if len(full) else None
+        pick = ab[ab["Threshold"] == 0.30]
+        w.para("On declining to answer.", bold=True, space_after=4)
+        w.para(
+            "The first-line finding above suggests a response that Section 5.4.2 "
+            "anticipates: a model that declines to predict where it has no basis for "
+            "predicting. Table 4.17 quantifies the trade-off for resolver routing by "
+            "withholding a decision wherever the classifier's best score falls below a "
+            "threshold, and reporting what is bought and what is given up.")
+        w.table(ab, "Table 4.17: Abstention trade-off for resolver routing",
+                cols=["Threshold", "Answered %", "Accuracy (answered)",
+                      "Accuracy (declined)", "First-line share of declined %",
+                      "Enrichment vs base"],
+                rename={"First-line share of declined %": "First-line % of declined",
+                        "Enrichment vs base": "Enrichment"},
+                fontsize=9, first_col_w=1300)
+        if len(pick) and base:
+            r = pick.iloc[0]
+            w.para(
+                f"The result is favourable and, more importantly, interpretable. "
+                f"Withholding a decision on the {100 - float(r['Answered %']):.1f}% of "
+                f"tickets scoring below {float(r['Threshold']):.2f} raises accuracy on "
+                f"the remainder from {base:.4f} to {float(r['Accuracy (answered)']):.4f}, "
+                f"while the withheld tickets would have been routed correctly only "
+                f"{float(r['Accuracy (declined)']):.4f} of the time. The declined pile "
+                f"is also enriched for first-line work by a factor of "
+                f"{float(r['Enrichment vs base']):.2f} against its base rate. Declining "
+                f"is therefore not merely a refusal to answer: the tickets the model "
+                f"declines are disproportionately the ones that belong at first line, "
+                f"which is precisely where an unidentifiable ticket should go. The "
+                f"abstention rule and the first-line routing rule turn out to be the "
+                f"same rule, which is a stronger result than either alone.")
+
+    w.para("On the artefact.", bold=True, space_after=4)
+    w.para(
+        "Section 1.6 treated a prototype as an eventual artefact potentially informed "
+        "by these findings rather than as the starting assumption of the research. The "
+        "findings now exist, and so does the artefact they inform. It is reported here "
+        "because in a Design Science study the artefact is a contribution rather than a "
+        "by-product, and because its design is an argument about the findings rather "
+        "than a presentation of them.")
+    w.para(
+        "The artefact serves both arms side by side: the end-to-end model, each of the "
+        "three task-specific models alone, and the three operating as a cascade, over "
+        "one deployed representation of each. Three properties of its design follow "
+        "directly from results reported above rather than from interface preference.")
+    w.bullets([
+        "Every suggestion is offered with an explicit confirmation step. The resolver "
+        "accepts a suggested category or team, or overrides it, and both the suggestion "
+        "and the choice are recorded. The difference between them is a running override "
+        "rate, which is the resolver-facing measure Section 5.4.2 asks future work to "
+        "evaluate on in place of classification metrics alone.",
+        "Routing is presented as a ranked list rather than a single assignment, and the "
+        "scores shown are the classifier's own margins, labelled as margins rather than "
+        "as probabilities. Where the best margin falls below the threshold of Table "
+        "4.17 the artefact declines to assign and offers the first-line team instead, "
+        "with the reason stated on screen.",
+        "A resolver may refer a ticket onward to another team after assignment. This is "
+        "recorded separately from an override, because a referral is a reassignment "
+        "rather than a correction at intake, and reassignment rate is directly "
+        "comparable with the proportion of historical tickets the export records as "
+        "having been reassigned.",
+        "Where retrieval returns a historical ticket above a high similarity mark, the "
+        "artefact flags it as a possible duplicate and offers closure against it. This "
+        "is not an additional capability: it is the recommendation model of Objective "
+        "Four read at the top of its own similarity scale, at a threshold where every "
+        "flagged pair in the held-out set shared the same underlying problem.",
+    ])
+    w.para(
+        "What the artefact does not do is as deliberate as what it does. It assigns "
+        "nothing automatically, resolves nothing automatically, and offers no decision "
+        "it cannot show the basis for. That follows from the conclusion drawn below "
+        "rather than from caution.")
+
     w.para(
         "On the conceptual framework. The framework in Section 2.10 posited ticket text "
         "and context as inputs, representation and modelling as the transformation, and "
@@ -1051,10 +1162,16 @@ def s542(w, R):
         "and 3.8.3, and triangulate the feature-relevance findings of Section 4.3 "
         "against how support staff describe their own categorisation and routing "
         "practice.",
-        "Develop and evaluate the prototype workflow as a Design Science artefact, "
-        "assessing it on resolver-facing criteria — time to first correct assignment, "
-        "reassignment rate, and resolver trust in the suggestions — rather than on "
-        "classification metrics alone.",
+        "Evaluate the prototype described in Section 4.7 with ICT support staff. The "
+        "artefact exists and already records the measures required — override rate, "
+        "referral rate and abstention — but it has been exercised only by the "
+        "researcher. What is outstanding is the study with resolvers that would turn "
+        "those counters into evidence about time to first correct assignment, "
+        "reassignment rate and resolver trust.",
+        "Validate the abstention threshold of Table 4.17 in operation. The trade-off "
+        "reported there is measured on held-out data; whether resolvers find a model "
+        "that declines on roughly one ticket in eight more useful than one that always "
+        "answers is a question about practice, not about held-out accuracy.",
         "Investigate abstention and escalation. Because a large share of residual error "
         "arises from tickets that genuinely lack identifying detail, a model that "
         "declines to predict and instead requests clarification may be more useful "
@@ -1132,6 +1249,7 @@ NEW_TABLES = [
     "Table 4.14: Arm A — Historical-Resolution Recommendation",
     "Table 4.15: Arm B — Historical-Resolution Recommendation",
     "Table 4.16: Operational Comparison of the Two Arms",
+    "Table 4.17: Abstention Trade-off for Resolver Routing",
 ]
 
 NEW_FIGURES = [

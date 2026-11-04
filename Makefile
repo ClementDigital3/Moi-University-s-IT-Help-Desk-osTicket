@@ -56,6 +56,7 @@ models:    end2end m1 m2 m3
 analysis:
 	$(PY) -m analysis.assemble_tables
 	$(PY) -m analysis.representation
+	$(PY) -m analysis.abstention
 	$(PY) -m analysis.compare
 	$(PY) -m analysis.figures
 

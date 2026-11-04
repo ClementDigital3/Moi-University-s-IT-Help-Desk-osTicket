@@ -35,6 +35,9 @@ def record(entry):
         "suggested_team": entry.get("suggested_team"),
         "chosen_team": entry.get("chosen_team"),
         "resolution_used": entry.get("resolution_used"),
+        "referred_to": entry.get("referred_to"),
+        "closed_as_duplicate_of": entry.get("closed_as_duplicate_of"),
+        "abstained": bool(entry.get("abstained")),
         "confidence_category": entry.get("confidence_category"),
         "confidence_team": entry.get("confidence_team"),
     }
@@ -82,6 +85,8 @@ def summary():
     team_over = sum(1 for r in team if r["team_overridden"])
     flows = Counter((r["suggested_team"], r["chosen_team"])
                     for r in team if r["team_overridden"])
+    referrals = [r for r in rows if r.get("referred_to")]
+    dups = [r for r in rows if r.get("closed_as_duplicate_of")]
     return {
         "total": n,
         "category": {"decided": len(cat), "overridden": cat_over,
@@ -89,6 +94,14 @@ def summary():
         "team": {"decided": len(team), "overridden": team_over,
                  "accept_rate": round(1 - team_over / len(team), 3) if team else None},
         "resolutions_reused": sum(1 for r in rows if r.get("resolution_used")),
+        "referred": len(referrals),
+        "closed_as_duplicate": len(dups),
+        "abstained": sum(1 for r in rows if r.get("abstained")),
+        # The share of assignments that did not hold -- the reassignment rate
+        # Section 5.4.2 asks future work to evaluate on. The corpus itself
+        # carries a Reassigned field showing 13.5% historically, so this is
+        # directly comparable.
+        "referral_rate": round(len(referrals) / len(team), 3) if team else None,
         "top_overrides": [{"from": a, "to": b, "n": c}
                           for (a, b), c in flows.most_common(5)],
         "recent": rows[-5:][::-1],

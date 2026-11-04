@@ -8,6 +8,7 @@ Steps that aren't any one model's business.
 | `assemble_tables.py` | stitches per-model fragments into the numbered tables |
 | `representation.py` | **RQ2** — contextual vs lexical, same head, same folds |
 | `compare.py` | **the central experiment** — paired McNemar, bootstrap CIs |
+| `abstention.py` | **Table 4.17** — what declining to route buys |
 | `figures.py` | all seven Chapter Four figures |
 | `write_chapters.py` | writes Chapters Four & Five into `docs/` |
 | `build_dashboard.py` | builds `results/dashboard.html` |

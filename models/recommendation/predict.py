@@ -15,6 +15,12 @@ from .export import BUNDLE
 
 _B = {}
 
+# Calibrated on the held-out set: at this similarity every flagged pair shared
+# the same underlying problem (47 of 924 queries). A duplicate is not a separate
+# capability -- it is this model's own similarity scale at its top end, which is
+# why it needs no new objective to justify it.
+DUPLICATE_ABOVE = 0.85
+
 
 def load(path=BUNDLE):
     if path not in _B:
@@ -57,8 +63,11 @@ def predict(subject="", description="", category=None, top_k=5,
         "weak": bool(sim[i] < thresh),
     } for i in top]
 
+    dup = out[0] if out and out[0]["similarity"] >= DUPLICATE_ABOVE else None
     return {
         "matches": out,
+        "duplicate_of": dup,
+        "duplicate_above": DUPLICATE_ABOVE,
         "strong_match": bool(out and out[0]["similarity"] >= thresh),
         "threshold": thresh,
         "top_similarity": out[0]["similarity"] if out else 0.0,

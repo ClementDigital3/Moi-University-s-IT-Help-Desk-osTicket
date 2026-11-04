@@ -927,10 +927,20 @@ def s47(w, R):
         "rather than a correction at intake, and reassignment rate is directly "
         "comparable with the proportion of historical tickets the export records as "
         "having been reassigned.",
+        "The two arms decline on different grounds, and the artefact does not pretend "
+        "otherwise. Arm A's confidence is the proportion of its five branches that "
+        "agree, so declining means the ensemble is divided; Arm B's is a margin, so "
+        "declining means no team stands out. The populations differ: Arm B's declined "
+        "tickets are enriched for first-line work by 1.33 times their base rate, while "
+        "Arm A's are slightly depleted at 0.77 times. Arm B can therefore offer the "
+        "first-line team as a fallback on evidence, and Arm A cannot. The artefact "
+        "says so on screen rather than applying one arm's rule to the other, and the "
+        "asymmetry is recorded in Table 4.16.",
         "Where retrieval returns a historical ticket above a high similarity mark, the "
         "artefact flags it as a possible duplicate and offers closure against it. This "
         "is not an additional capability: it is the recommendation model of Objective "
-        "Four read at the top of its own similarity scale, at a threshold where every "
+        "Four read at the top of its own similarity scale. Each arm carries its own "
+        "mark because their similarity scales differ, and at both marks every "
         "flagged pair in the held-out set shared the same underlying problem.",
     ])
     w.para(

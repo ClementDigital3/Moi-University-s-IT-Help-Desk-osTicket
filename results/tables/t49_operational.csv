@@ -5,5 +5,6 @@ Inference per ticket,1 vectorise → 10 model calls → 2 votes → 1 search,1 e
 Training cost (s),432.1 (supervised fits),134.8 encode + head fits
 Adding a new category or resolver,refit all 5 base classifiers for that task,refit one head; the encoder is unchanged
 Cold-start on unseen vocabulary,out-of-vocabulary terms are simply dropped,encoder generalises from pretraining
+What declining identifies,tickets its branches disagree on; NOT enriched for first line (0.77x base),tickets with no clear team; enriched for first line (1.33x base)
 Explanation offered to the resolver,vote margin across base classifiers,the neighbouring tickets and their resolutions
 Failure coupling,tasks independent; a bad category does not affect routing,cascaded: routing inherits B1 error (OOF agreement 0.890)

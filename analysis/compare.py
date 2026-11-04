@@ -148,6 +148,11 @@ def main():
         {"Dimension": "Cold-start on unseen vocabulary",
          "Arm A (end-to-end)": "out-of-vocabulary terms are simply dropped",
          "Arm B (task-specific)": "encoder generalises from pretraining"},
+        {"Dimension": "What declining identifies",
+         "Arm A (end-to-end)": "tickets its branches disagree on; NOT enriched "
+                               "for first line (0.77x base)",
+         "Arm B (task-specific)": "tickets with no clear team; enriched for "
+                                  "first line (1.33x base)"},
         {"Dimension": "Explanation offered to the resolver",
          "Arm A (end-to-end)": "vote margin across base classifiers",
          "Arm B (task-specific)": "the neighbouring tickets and their resolutions"},

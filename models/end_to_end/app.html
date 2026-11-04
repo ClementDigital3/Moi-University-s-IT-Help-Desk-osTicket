@@ -63,6 +63,13 @@
         <label style="margin-top:14px">Try an example</label>
         <div class="chips" id="chips"></div>
       </div>
+      <div class="card">
+        <h2>This session</h2>
+        <div class="tally" id="tally"><span class="t">No decisions recorded yet.</span></div>
+        <div class="hint" style="margin-top:10px">Recorded against <b>Arm A</b>, so the
+          two arms can be compared on how they are used rather than on held-out
+          accuracy alone.</div>
+      </div>
     </aside>
 
     <section class="pane" id="out">
@@ -100,6 +107,7 @@ fetch("/api/examples").then(r => r.json()).then(xs => {
 }).catch(() => {});
 
 function decision(task, d){
+  const isTeam = /routing/i.test(task);
   const votes = d.branches.map(b => {
     const agree = b.label === d.label;
     return `<span class="bvote ${agree ? "agree" : ""}">${esc(b.model)}:
@@ -115,6 +123,29 @@ function decision(task, d){
     <div class="dmeta">confidence <b>${pct(d.confidence)}</b>
       &nbsp;&middot;&nbsp; next best: ${esc(d.runner_up)} (${pct(d.runner_up_confidence)})</div>
     <div class="branches">${votes}</div>
+    ${d.abstain ? `<div class="warnbar" style="margin:10px 0 0">
+        <b>The branches disagree.</b> Only ${Math.round(d.agreement * 5)} of 5 classifiers
+        chose this team, below the ${d.abstain_below * 5} required. At this level the
+        model is right about 57% of the time against 81% when all five agree.
+        ${d.abstain_routes_first_line ? "" :
+          "Unlike Arm B, these are <b>not</b> disproportionately first-line tickets \u2014 " +
+          "they are simply the ones this ensemble cannot agree on, so it offers no " +
+          "fallback team and asks for a human decision."}
+      </div>` : ""}
+    <div class="actions">
+      <span class="lbl">${isTeam ? "Assign to" : "Category"}</span>
+      <button class="act ${d.abstain ? "" : "primary"}" data-accept="${esc(task)}">
+        ${d.abstain ? `Assign ${esc(d.label)} anyway` : `Accept ${esc(d.label)}`}</button>
+      <select class="override" data-pick="${esc(task)}" aria-label="Override">
+        <option value="">${isTeam ? "Another team&hellip;" : "Override&hellip;"}</option>
+        ${d.distribution.map(x => `<option>${esc(x.label)}</option>`).join("")}
+      </select>
+      ${isTeam ? `<select class="override" data-refer="1" aria-label="Refer to another resolver">
+        <option value="">Refer on&hellip;</option>
+        ${d.distribution.map(x => `<option>${esc(x.label)}</option>`).join("")}
+      </select>` : ""}
+    </div>
+    <div data-done="${esc(task)}"></div>
   </div>`;
 }
 
@@ -125,8 +156,17 @@ function similar(rows, meta){
       <b>${meta.top_similarity.toFixed(3)}</b>, below the ${meta.threshold.toFixed(2)}
       threshold. Treat these as loose suggestions.
     </div>` : "";
+  const dup = meta && meta.duplicate_of;
   return `<div class="card">
     <h2>Similar resolved tickets &mdash; what worked before</h2>
+    ${dup ? `<div class="notice" style="margin-bottom:11px">
+        <b>Possible duplicate.</b> This looks like <b>${esc(dup.ticket_id)}</b> &mdash;
+        &ldquo;${esc(dup.subject)}&rdquo; at similarity ${dup.similarity.toFixed(3)},
+        above the ${meta.duplicate_above} mark where every flagged pair in the
+        held-out set shared the same underlying problem.
+        <div style="margin-top:8px"><button class="act primary act-sm"
+          data-dup="${esc(dup.ticket_id)}">Close as duplicate</button></div>
+      </div>` : ""}
     ${warn}
     <table><thead><tr>
       <th style="width:92px">Ticket</th><th>Problem &amp; resolution</th><th style="width:66px">Match</th>
@@ -138,10 +178,14 @@ function similar(rows, meta){
         <div style="font-weight:600;margin-top:3px">${esc(r.subject)}</div>
         <div class="res">${esc(r.resolution)}</div>
       </td>
-      <td class="sim ${r.weak ? "weak" : ""}">${r.similarity.toFixed(3)}</td>
+      <td class="sim ${r.weak ? "weak" : ""}">${r.similarity.toFixed(3)}
+        <div><button class="act act-sm" data-use="${esc(r.ticket_id)}"
+          style="margin-top:6px">Use this</button></div></td>
     </tr>`).join("")}
-    </tbody></table></div>`;
+    </tbody></table><div data-done="retrieval"></div></div>`;
 }
+
+let LAST = null;
 
 function render(d){
   const out = $("#out");
@@ -150,6 +194,7 @@ function render(d){
     return;
   }
   const cards = Object.entries(d.tasks).map(([t, v]) => decision(t, v)).join("");
+  LAST = d;
   out.innerHTML = `<div class="card"><h2>Triage decision</h2>${cards}</div>`
                 + similar(d.similar, d.retrieval);
   out.scrollTop = 0;
@@ -168,6 +213,78 @@ function render(d){
   else $("#f").requestSubmit();
 })();
 
+
+/* ---------------------------------------------------------------------
+   Arm A's confirmation step. Same vocabulary as Arm B -- accept, override,
+   refer on, close as duplicate -- so the two arms are compared on how they
+   are used, not on two different sets of controls.
+   --------------------------------------------------------------------- */
+const TASK_CLS = "Ticket classification", TASK_RTE = "Resolver routing";
+
+function base(){
+  const t = LAST && LAST.tasks;
+  return {
+    arm: "A",
+    subject: $("#subject").value,
+    description: $("#description").value,
+    suggested_category: t && t[TASK_CLS] && t[TASK_CLS].label,
+    suggested_team: t && t[TASK_RTE] && t[TASK_RTE].label,
+    confidence_category: t && t[TASK_CLS] && t[TASK_CLS].confidence,
+    confidence_team: t && t[TASK_RTE] && t[TASK_RTE].confidence,
+    abstained: !!(t && t[TASK_RTE] && t[TASK_RTE].abstain),
+  };
+}
+
+function doneFor(task){ return document.querySelector(`[data-done="${task}"]`); }
+
+async function decide(task, chosen){
+  const b = base();
+  const isTeam = /routing/i.test(task);
+  await Decisions.send({...b, [isTeam ? "chosen_team" : "chosen_category"]: chosen});
+  const el = doneFor(task);
+  if (el) el.innerHTML = Decisions.confirmation(isTeam ? "Assignment" : "Category",
+    isTeam ? b.suggested_team : b.suggested_category, chosen);
+  refreshTally();
+}
+
+async function referOn(team){
+  const b = base();
+  await Decisions.send({...b, chosen_team: b.suggested_team, referred_to: team});
+  const el = doneFor(TASK_RTE);
+  if (el) el.innerHTML = `<div class="recorded over"><span>&#8594;</span>
+    <span>Referred on to <b>${Decisions.esc(team)}</b> &mdash; recorded as a
+    reassignment, not a first-time match.</span></div>`;
+  refreshTally();
+}
+
+async function retrieval(kind, id){
+  const payload = {...base()};
+  payload[kind === "dup" ? "closed_as_duplicate_of" : "resolution_used"] = id;
+  await Decisions.send(payload);
+  const el = doneFor("retrieval");
+  if (el) el.innerHTML = `<div class="recorded"><span>&#10003;</span><span>${
+    kind === "dup" ? `Closed as a duplicate of <b>${Decisions.esc(id)}</b>.`
+                   : `Resolution from <b>${Decisions.esc(id)}</b> recorded as reused.`}</span></div>`;
+  refreshTally();
+}
+
+$("#out").addEventListener("click", e => {
+  const d = e.target.closest("[data-dup]");      if (d) return retrieval("dup", d.dataset.dup);
+  const u = e.target.closest("[data-use]");      if (u) return retrieval("use", u.dataset.use);
+  const a = e.target.closest("[data-accept]");
+  if (a) return decide(a.dataset.accept, LAST.tasks[a.dataset.accept].label);
+});
+$("#out").addEventListener("change", e => {
+  if (e.target.dataset.pick && e.target.value) decide(e.target.dataset.pick, e.target.value);
+  if (e.target.dataset.refer && e.target.value) referOn(e.target.value);
+});
+
+async function refreshTally(){
+  const el = $("#tally"); if (!el) return;
+  el.innerHTML = Decisions.tally(await Decisions.summary());
+}
+refreshTally();
+
 $("#f").addEventListener("submit", async e => {
   e.preventDefault();
   const go = $("#go");
@@ -184,6 +301,7 @@ $("#f").addEventListener("submit", async e => {
     go.disabled = false; go.textContent = "Classify ticket";
   }
 });
+
 </script>
 </body>
 </html>

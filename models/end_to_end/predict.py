@@ -26,6 +26,27 @@ _CACHE = {}
 # good ones.
 STRONG_MATCH = 0.50
 
+# Arm A declines when its branches disagree. Its confidence IS the vote margin,
+# which Table 4.16 identifies as this model's only means of explaining itself,
+# so the rule and the explanation are the same object. Calibrated on the
+# held-out set: with all five branches agreeing the model is right 81.2% of the
+# time; at four of five, 56.9%; at three, 44.3%; at two, 28.6%. Requiring four
+# declines 8.9% of tickets and lifts accuracy on the rest from 0.747 to 0.780.
+AGREEMENT_BELOW = 0.8
+
+# Unlike Arm B, Arm A's declined pile is NOT enriched for first-line work --
+# 9.8% against a 12.8% base rate, so slightly depleted. Its abstention
+# therefore identifies tickets its branches cannot agree on, which is not the
+# same population as tickets that belong at first line. The prototype says so
+# rather than borrowing Arm B's routing rule, and the difference is reported in
+# Section 4.7.
+ABSTAIN_ROUTES_TO_FIRST_LINE = False
+
+# TF-IDF cosine runs on a different scale from Arm B's hybrid, so it carries its
+# own duplicate mark: at 0.80 every flagged pair in the held-out set shared the
+# same underlying problem (34 of 924).
+DUPLICATE_ABOVE = 0.80
+
 
 def load(path=BUNDLE):
     """Load the deployed bundle once and keep it in memory."""
@@ -88,8 +109,12 @@ def predict(subject, description, top_k=5, bundle=None):
                              "confidence": round(float(p[j]), 4)})
         combined = _combine(probas, spec["rule"], spec["weights"], n)[0]
         order = np.argsort(-combined)
+        agree = sum(1 for x in branches if x["label"] == classes[int(order[0])]) / len(branches)
         out["tasks"][task] = {
             "rule": spec["rule"],
+            "abstain": bool(task == "Resolver routing" and agree < AGREEMENT_BELOW),
+            "abstain_below": AGREEMENT_BELOW,
+            "abstain_routes_first_line": ABSTAIN_ROUTES_TO_FIRST_LINE,
             "label": classes[int(order[0])],
             "confidence": round(float(combined[order[0]]), 4),
             "runner_up": classes[int(order[1])],
@@ -110,6 +135,7 @@ def predict(subject, description, top_k=5, bundle=None):
         "strong_match": strong,
         "threshold": STRONG_MATCH,
         "top_similarity": round(float(sim[int(top[0])]), 4) if len(top) else 0.0,
+        "duplicate_above": DUPLICATE_ABOVE,
     }
     out["similar"] = [{
         "ticket_id": r["records"][int(i)]["Ticket ID"],
@@ -120,6 +146,9 @@ def predict(subject, description, top_k=5, bundle=None):
         "similarity": round(float(sim[int(i)]), 4),
         "weak": bool(sim[int(i)] < STRONG_MATCH),
     } for i in top if sim[int(i)] > 0]
+    out["retrieval"]["duplicate_of"] = (
+        out["similar"][0] if out["similar"]
+        and out["similar"][0]["similarity"] >= DUPLICATE_ABOVE else None)
     return out
 
 

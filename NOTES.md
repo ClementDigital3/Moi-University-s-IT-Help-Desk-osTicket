@@ -69,9 +69,17 @@ set rather than chosen:
 
 | Threshold | Where | What it buys |
 |---|---|---|
-| **0.30** routing margin | `models/routing/predict.py` | below it the model declines; raises accuracy on the rest from 0.729 to 0.787, and the declined pile is 1.33× enriched for first-line work |
-| **0.85** retrieval similarity | `models/recommendation/predict.py` | flags a possible duplicate; every flagged pair in the held-out set shared the same underlying problem (n=47) |
-| **0.50** retrieval similarity | same | below it, the archive has no close precedent and the page says so |
+| **0.30** routing margin | `models/routing/predict.py` (Arm B) | below it the model declines; raises accuracy on the rest from 0.729 to 0.787, and the declined pile is 1.33× enriched for first-line work |
+| **0.80** vote agreement | `models/end_to_end/predict.py` (Arm A) | fewer than 4 of 5 branches agreeing; lifts accuracy from 0.747 to 0.780 |
+| **0.85** hybrid similarity | `models/recommendation/predict.py` (Arm B) | flags a possible duplicate; every flagged pair shared the same underlying problem (n=47) |
+| **0.80** TF-IDF similarity | `models/end_to_end/predict.py` (Arm A) | the same flag on Arm A's own scale (n=34, all same problem) |
+| **0.50** retrieval similarity | both | below it, the archive has no close precedent and the page says so |
+
+**The arms do not share thresholds, and must not.** Arm A's confidence is a vote
+share; Arm B's is a margin. More importantly their declines identify *different
+tickets*: Arm B's are 1.33× enriched for first-line work, Arm A's are 0.77×
+— depleted. So Arm B can offer the first-line team as a fallback on evidence and
+Arm A cannot, which is why `ABSTAIN_ROUTES_TO_FIRST_LINE` is False there.
 
 `analysis/abstention.py` regenerates the first as Table 4.17. Re-run it if the
 model or the corpus changes — the numbers in Chapter Four come from that table,

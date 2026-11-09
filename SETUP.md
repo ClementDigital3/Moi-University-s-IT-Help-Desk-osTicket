@@ -91,6 +91,20 @@ Open **http://127.0.0.1:8000/** and you get six views:
 
 `Ctrl+C` stops the server.
 
+### Showing it on another device
+
+```bash
+make demo-lan
+```
+
+Serves on your local network as well as this machine, and prints both addresses
+— something like `http://192.168.10.159:8000/`. Open that on the laptop driving
+the projector, or on a phone, as long as they are on the same wifi.
+
+**There is no authentication.** Anyone who can reach the port can use it, which
+on a campus network means anyone on that network. That is fine for a
+demonstration and not fine for leaving running afterwards.
+
 ---
 
 ## That's it

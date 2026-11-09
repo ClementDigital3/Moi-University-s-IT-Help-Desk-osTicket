@@ -7,6 +7,14 @@ which is the only assumption worth making about a presentation room.
 
     .venv/bin/python -m models.end_to_end.serve
     .venv/bin/python -m models.end_to_end.serve --port 8080 --open
+    .venv/bin/python -m models.end_to_end.serve --lan
+
+--lan binds every interface instead of loopback, so other devices on the same
+network can reach it -- the machine driving the projector, a phone, a
+supervisor's laptop in the room. It stays off by default because the server has
+no authentication: anyone who can route to the port can use it. On a shared
+university network that is the whole network, which is fine for a demonstration
+and not fine for leaving running.
 
 The bundle is loaded once at startup, so the first prediction is as fast as the
 hundredth. Export it first with models.end_to_end.export.
@@ -226,6 +234,25 @@ def run_model(name, subject, description):
             "result": p3(frame=frame, category=cat["label"])}
 
 
+def _lan_address():
+    """
+    This machine's address on the local network.
+
+    Opening a UDP socket toward a routable address makes the OS pick the
+    interface it would actually use, without sending anything. Reading
+    hostname resolution instead tends to return 127.0.1.1 on Debian systems.
+    """
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("10.255.255.255", 1))
+        return s.getsockname()[0]
+    except Exception:
+        return socket.gethostbyname(socket.gethostname())
+    finally:
+        s.close()
+
+
 def cascade(subject, description):
     """
     Run Arm B's three models in their dependency order, keeping the hand-offs
@@ -255,8 +282,12 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--host", default="127.0.0.1")
+    ap.add_argument("--lan", action="store_true",
+                    help="serve on the local network, not just this machine")
     ap.add_argument("--open", action="store_true", help="open a browser window")
     args = ap.parse_args()
+    if args.lan:
+        args.host = "0.0.0.0"
 
     print("loading the deployed bundle ...")
     b = load()
@@ -266,7 +297,8 @@ def main():
               f"{len(spec['classes'])} classes")
     print(f"  retrieval index: {b['retrieval']['matrix'].shape[0]} resolved tickets")
 
-    url = f"http://{args.host}:{args.port}/"
+    url = f"http://{'127.0.0.1' if args.host == '0.0.0.0' else args.host}:{args.port}/"
+    lan_url = f"http://{_lan_address()}:{args.port}/" if args.host == "0.0.0.0" else None
     srv = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"\n  running at {url}\n")
     print(f"    Arm A   end-to-end          {url}")
@@ -276,6 +308,10 @@ def main():
     print(f"    Arm B   cascade             {url}cascade")
     print(f"            findings            {url}dashboard"
           + ("" if os.path.exists(DASHBOARD) else "   [not built - make dashboard]"))
+    if lan_url:
+        print(f"\n  on this machine   {url}")
+        print(f"  on the network    {lan_url}")
+        print("\n  note: no authentication -- anyone who can reach this port can use it.")
     print("\n  press Ctrl+C to stop\n")
     if args.open:
         webbrowser.open(url)

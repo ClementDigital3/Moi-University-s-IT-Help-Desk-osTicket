@@ -2,7 +2,7 @@
 # Run `make` on its own to see everything you can do.
 PY := .venv/bin/python
 
-.PHONY: help setup data prep models analysis chapters dashboard demo all \
+.PHONY: help setup data prep models analysis chapters dashboard demo demo-lan all \
         m1 m2 m3 end2end export clean-cache clean-results status
 
 help:
@@ -27,7 +27,8 @@ help:
 	@echo ""
 	@echo "  DEMO"
 	@echo "    make export       persist all four models for serving"
-	@echo "    make demo         serve all three views at http://127.0.0.1:8000/"
+	@echo "    make demo         serve on this machine only"
+	@echo "    make demo-lan     serve on the local network too (projector, phone)"
 	@echo "                        /                Arm A  end-to-end"
 	@echo "                        /classification  Arm B  B1 alone"
 	@echo "                        /routing         Arm B B2 alone"
@@ -68,6 +69,12 @@ export:
 	$(PY) -m models.classification.export
 	$(PY) -m models.routing.export
 	$(PY) -m models.recommendation.export
+
+demo-lan: export
+	@echo ""
+	@echo "  serving on the local network - anyone who can reach this machine can use it"
+	@echo ""
+	$(PY) -m models.end_to_end.serve --lan
 
 demo: export
 	@echo ""

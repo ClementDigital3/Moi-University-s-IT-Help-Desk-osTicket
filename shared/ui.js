@@ -80,6 +80,10 @@ window.Decisions = (function(){
     if (s.referral_rate != null) bits.push(`<b>${pc(s.referral_rate)}</b>referred on`);
     if (s.abstained) bits.push(`<b>${s.abstained}</b>declined to first line`);
     if (s.closed_as_duplicate) bits.push(`<b>${s.closed_as_duplicate}</b>closed as duplicate`);
+    if (s.rejected) bits.push(`<b>${s.rejected}</b>rejected`);
+    if (s.mean_confidence_lift != null)
+      bits.push(`<b>${s.mean_confidence_lift > 0 ? "+" : ""}${s.mean_confidence_lift.toFixed(3)}</b>` +
+                `confidence from detail added (&times;${s.enriched})`);
     if (s.resolutions_reused) bits.push(`<b>${s.resolutions_reused}</b>resolutions reused`);
     return bits.map(b => `<span class="t">${b}</span>`).join("");
   }

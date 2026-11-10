@@ -265,3 +265,28 @@ select.override{font:inherit;font-size:var(--t-sm);padding:5px 9px;
 .tally .t{font-size:var(--t-sm);color:var(--ink-3)}
 .tally .t b{font-size:var(--t-lg);font-weight:680;color:var(--ink);
   font-variant-numeric:tabular-nums;margin-right:3px}
+
+/* ---------------------------------------------------------------------
+   Enrichment: the resolver supplies what the user left out.
+
+   The thesis finds that ambiguous tickets set the ceiling, and recommends a
+   better intake form over a bigger model. This panel is where that is shown
+   rather than argued -- the resolver adds the missing detail and the ticket
+   is scored again, with the before and after side by side.
+   --------------------------------------------------------------------- */
+.modify{background:var(--plane);border:1px solid var(--line-2);border-radius:var(--r);
+  padding:var(--s3) var(--s4);margin-top:var(--s3)}
+.modify h3{margin:0 0 3px;font-size:var(--t-md);font-weight:670}
+.modify .why{font-size:var(--t-sm);color:var(--ink-3);margin:0 0 var(--s3);line-height:1.5}
+.modify label{margin-top:var(--s2)}
+.modify .row{display:flex;gap:var(--s2);margin-top:var(--s3);flex-wrap:wrap}
+.modify .row .act{flex:none}
+
+.lift{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;
+  background:var(--good-bg);border:1px solid var(--good-line);
+  border-radius:var(--r);padding:var(--s3) var(--s4);margin-top:var(--s3)}
+.lift .n{font-size:var(--t-xl);font-weight:690;font-variant-numeric:tabular-nums;color:var(--ink)}
+.lift .arrow{color:var(--ink-3);font-size:var(--t-lg)}
+.lift .cap{font-size:var(--t-sm);color:var(--good-ink);flex:1 1 220px;line-height:1.45}
+.lift.down{background:var(--warn-bg);border-color:var(--warn-line)}
+.lift.down .cap{color:var(--warn-ink)}

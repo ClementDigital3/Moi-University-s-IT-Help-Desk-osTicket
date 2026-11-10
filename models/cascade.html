@@ -176,8 +176,11 @@ function render(d){
         <option value="">Refer on&hellip;</option>
         ${r.ranked.map(x => `<option>${esc(x.label)}</option>`).join("")}
       </select>
+      <button class="act" data-act="reject">Reject</button>
+      <button class="act" data-act="modify">Add detail&hellip;</button>
     </div>
     <div id="team-done"></div>
+    <div id="modify-host"></div>
     <div class="hint">${margin
       ? "Relative scores from the classifier's margins, not probabilities — the thesis recommends routing be offered as a ranked suggestion, not an assignment."
       : "Probabilities from the classifier."}${r.cascaded
@@ -271,6 +274,93 @@ async function decideTeam(chosen, viaAbstain){
   refreshTally();
 }
 
+
+/* ---------------------------------------------------------------------
+   Rejection and enrichment.
+
+   A rejection says the suggestion is wrong. It is usually followed by the
+   resolver knowing something the ticket does not say -- which system, which
+   building, which device. Adding that and scoring again is the intake-form
+   argument of Section 5.4.1 carried out rather than asserted, and the
+   confidence before and after is the measurement.
+   --------------------------------------------------------------------- */
+function modifyPanel(){
+  const host = $("#modify-host"); if (!host) return;
+  host.innerHTML = `<div class="modify">
+    <h3>Add the detail the ticket is missing</h3>
+    <p class="why">The model's uncertainty here is usually missing information, not a
+      weak classifier. Supply what the user left out &mdash; which system, which
+      building, which device &mdash; and the ticket is scored again.</p>
+    <label for="m-subject">Subject</label>
+    <input type="text" id="m-subject" value="${esc($("#subject").value)}">
+    <label for="m-description">Description</label>
+    <textarea id="m-description">${esc($("#description").value)}</textarea>
+    <div class="row">
+      <button class="act primary" data-act="rerun">Re-run with these details</button>
+      <button class="act" data-act="cancel-modify">Cancel</button>
+    </div>
+  </div>`;
+  $("#m-description").focus();
+}
+
+async function rerunEnriched(){
+  const beforeText = `${$("#subject").value} ${$("#description").value}`.trim();
+  const beforeConf = LAST && LAST.routing.confidence;
+  const subject = $("#m-subject").value, description = $("#m-description").value;
+
+  const btn = document.querySelector('[data-act="rerun"]');
+  if (btn) { btn.disabled = true; btn.textContent = "Scoring\u2026"; }
+
+  const res = await fetch("/api/cascade", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({subject, description})
+  });
+  const d = await res.json();
+  if (d.error) { if (btn) { btn.disabled = false; btn.textContent = "Re-run with these details"; } return; }
+
+  // the edited ticket becomes the ticket
+  $("#subject").value = subject; $("#description").value = description;
+  const afterConf = d.routing.confidence;
+
+  await Decisions.send({
+    arm: "B", subject, description,
+    enriched: true,
+    text_before: beforeText,
+    text_after: `${subject} ${description}`.trim(),
+    confidence_before: beforeConf,
+    confidence_after: afterConf,
+    suggested_team: d.routing.label,
+  });
+
+  render(d);
+  const host = $("#modify-host");
+  if (host) {
+    const up = afterConf - beforeConf;
+    host.innerHTML = `<div class="lift ${up < 0 ? "down" : ""}">
+      <span class="n">${beforeConf.toFixed(3)}</span>
+      <span class="arrow">&rarr;</span>
+      <span class="n">${afterConf.toFixed(3)}</span>
+      <span class="cap">${up >= 0
+        ? `Routing confidence rose <b>${up.toFixed(3)}</b> once the detail was supplied.
+           The limit was the ticket, not the model.`
+        : `Routing confidence fell ${Math.abs(up).toFixed(3)}. The added detail did not
+           help here &mdash; recorded as it stands.`}</span>
+    </div>`;
+  }
+  refreshTally();
+}
+
+async function rejectSuggestion(){
+  const b = base();
+  await Decisions.send({...b, rejected: true});
+  const el = $("#team-done");
+  if (el) el.innerHTML = `<div class="recorded over"><span>&#10007;</span>
+    <span><b>${Decisions.esc(b.suggested_team)}</b> rejected. If you know what the
+    ticket does not say, add it below and score it again.</span></div>`;
+  modifyPanel();
+  refreshTally();
+}
+
 async function referOn(team){
   const b = base();
   await Decisions.send({...b, chosen_team: b.suggested_team, referred_to: team});
@@ -307,6 +397,10 @@ $("#out").addEventListener("click", e => {
   if (b.dataset.act === "cat-accept") return decideCategory(LAST.category.label);
   if (b.dataset.act === "team-accept") return decideTeam(LAST.routing.label);
   if (b.dataset.act === "first-line") return decideTeam(LAST.routing.first_line, true);
+  if (b.dataset.act === "reject") return rejectSuggestion();
+  if (b.dataset.act === "modify") return modifyPanel();
+  if (b.dataset.act === "rerun") return rerunEnriched();
+  if (b.dataset.act === "cancel-modify") { $("#modify-host").innerHTML = ""; return; }
 });
 $("#out").addEventListener("change", e => {
   if (e.target.id === "catpick" && e.target.value) decideCategory(e.target.value);
@@ -334,6 +428,9 @@ $("#f").addEventListener("submit", async e => {
     $("#out").innerHTML = `<div class="card"><div class="err">${esc(err)}</div></div>`;
   } finally { go.disabled = false; go.textContent = "Run the cascade"; }
 });
+
+
+
 
 
 

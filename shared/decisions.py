@@ -38,6 +38,16 @@ def record(entry):
         "referred_to": entry.get("referred_to"),
         "closed_as_duplicate_of": entry.get("closed_as_duplicate_of"),
         "abstained": bool(entry.get("abstained")),
+        # A rejection says the suggestion is wrong without naming what is right;
+        # an override names it. Keeping them apart matters because a resolver
+        # who rejects often does not yet know the answer -- which is what the
+        # enrichment step below is for.
+        "rejected": bool(entry.get("rejected")),
+        "enriched": bool(entry.get("enriched")),
+        "text_before": (entry.get("text_before") or "")[:600],
+        "text_after": (entry.get("text_after") or "")[:600],
+        "confidence_before": entry.get("confidence_before"),
+        "confidence_after": entry.get("confidence_after"),
         "confidence_category": entry.get("confidence_category"),
         "confidence_team": entry.get("confidence_team"),
     }
@@ -87,6 +97,14 @@ def summary():
                     for r in team if r["team_overridden"])
     referrals = [r for r in rows if r.get("referred_to")]
     dups = [r for r in rows if r.get("closed_as_duplicate_of")]
+    rejects = [r for r in rows if r.get("rejected")]
+    # Enrichment: the resolver supplied the detail the user left out, and the
+    # ticket was scored again. The lift is the evidence for Section 5.4.1's
+    # recommendation that a better intake form beats a bigger model.
+    enriched = [r for r in rows if r.get("enriched")
+                and r.get("confidence_before") is not None
+                and r.get("confidence_after") is not None]
+    lifts = [r["confidence_after"] - r["confidence_before"] for r in enriched]
     return {
         "total": n,
         "category": {"decided": len(cat), "overridden": cat_over,
@@ -102,6 +120,13 @@ def summary():
         # carries a Reassigned field showing 13.5% historically, so this is
         # directly comparable.
         "referral_rate": round(len(referrals) / len(team), 3) if team else None,
+        "rejected": len(rejects),
+        "enriched": len(enriched),
+        "mean_confidence_lift": round(sum(lifts) / len(lifts), 3) if lifts else None,
+        "enrichment_examples": [
+            {"before": r["text_before"][:160], "after": r["text_after"][:160],
+             "from": r["confidence_before"], "to": r["confidence_after"]}
+            for r in enriched[-3:]][::-1],
         "top_overrides": [{"from": a, "to": b, "n": c}
                           for (a, b), c in flows.most_common(5)],
         "recent": rows[-5:][::-1],

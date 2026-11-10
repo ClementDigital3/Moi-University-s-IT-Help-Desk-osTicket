@@ -62,6 +62,37 @@ page scripts use during initial render. With `defer` it executed after them and
 every call threw silently — the session tally never populated and nothing said
 why.
 
+## Reject, and the enrichment loop
+
+Accept, override, reject and modify are four different things and the log keeps
+them apart:
+
+- **override** names the right answer — the resolver knows it
+- **reject** says the suggestion is wrong *without* naming the right one — which
+  is the common case, and usually means the ticket is missing something
+
+A rejection therefore opens the **Add detail** panel. The resolver supplies what
+the user left out, the ticket is scored again, and the confidence before and
+after are both recorded. The lift is the evidence for Section 5.4.1's
+recommendation that a better intake form beats a bigger model — measured by
+using the thing rather than argued.
+
+Measured on three vague tickets, all of which the model declines:
+
+| Ticket | Category lift | Routing lift |
+|---|---|---|
+| "Cannot login / trying since morning" | +0.313 | +0.428 |
+| "Issue affecting my work / assist urgently" | +0.610 | +0.369 |
+| "It is not working / kindly help" | +0.729 | +0.109 |
+
+All three move from *declining to assign* to a confident assignment. The limit
+was the ticket, not the model.
+
+**Testing note.** A synchronous busy-wait cannot test this flow: it blocks the
+event loop, so the `await` inside the re-run never resumes and nothing records.
+Verify the click-to-function wiring with a marker set before the first `await`,
+and the rest through the API.
+
 ## Calibrated thresholds
 
 Three numbers in the prototype are operating points, measured on the held-out

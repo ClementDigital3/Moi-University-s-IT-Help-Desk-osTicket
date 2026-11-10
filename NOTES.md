@@ -88,6 +88,24 @@ Measured on three vague tickets, all of which the model declines:
 All three move from *declining to assign* to a confident assignment. The limit
 was the ticket, not the model.
 
+Every page that shows a suggestion has the same six controls — **accept,
+override, reject, add detail, refer on, close as duplicate** — so the arms are
+compared on how they are used rather than on two different interfaces. Only the
+re-scoring endpoint differs: `/api/predict` for Arm A, `/api/cascade` for the
+cascade, `/api/model/<name>` for a single model.
+
+The lift is each model's own. Measured on the same vague ticket:
+
+| Where | Before | After | Lift |
+|---|---|---|---|
+| Arm A end-to-end | 0.400 | 1.000 | **+0.600** |
+| Arm B cascade (routing) | 0.223 | 0.654 | +0.431 |
+| B1 alone | 0.565 | 0.876 | +0.311 |
+| B2 alone | 0.223 | 0.654 | +0.431 |
+
+Arm A's jump is the starkest because its confidence is branch agreement: the
+ticket goes from two of five classifiers agreeing to all five.
+
 **Testing note.** A synchronous busy-wait cannot test this flow: it blocks the
 event loop, so the `await` inside the re-run never resumes and nothing records.
 Verify the click-to-function wiring with a marker set before the first `await`,

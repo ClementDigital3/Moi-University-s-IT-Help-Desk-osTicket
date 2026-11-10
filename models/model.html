@@ -156,8 +156,11 @@ const RENDER = {
           <option value="">Override&hellip;</option>
           ${r.distribution.map(x => `<option>${esc(x.label)}</option>`).join("")}
         </select>
+        <button class="act" data-act="reject">Reject</button>
+        <button class="act" data-act="modify">Add detail&hellip;</button>
       </div>
       <div id="done"></div>
+      <div id="modify-host"></div>
       <div class="hint">A full distribution, not just a label. Thresholding it to
         send low-confidence tickets to a human — rather than always answering — is
         the abstention experiment Chapter Five recommends.</div>
@@ -195,7 +198,10 @@ const RENDER = {
           <option value="">Refer on&hellip;</option>
           ${r.ranked.map(x => `<option>${esc(x.label)}</option>`).join("")}
         </select>
+        <button class="act" data-act="reject">Reject</button>
+        <button class="act" data-act="modify">Add detail&hellip;</button>
       </div>
+      <div id="modify-host"></div>
       <div id="done"></div>
       <div class="hint">${margin
         ? "Relative scores from the classifier's margins — not probabilities. A margin dressed up as a probability would claim confidence the model never had."
@@ -308,6 +314,84 @@ async function decide(kind, chosen){
 
 const KIND = {classification: "Category", routing: "Assignment", recommendation: "Resolution"};
 
+
+/* ---------------------------------------------------------------------
+   Rejection and enrichment on a single model's page. Re-scores through this
+   model's own endpoint, so the lift measured is this model's lift.
+   --------------------------------------------------------------------- */
+function conf(){
+  const r = LAST && LAST.result;
+  return r ? r.confidence : null;
+}
+
+function modifyPanel(){
+  const host = $("#modify-host"); if (!host) return;
+  host.innerHTML = `<div class="modify">
+    <h3>Add the detail the ticket is missing</h3>
+    <p class="why">The uncertainty here is usually missing information, not a weak
+      model. Supply what the user left out and the ticket is scored again.</p>
+    <label for="m-subject">Subject</label>
+    <input type="text" id="m-subject" value="${esc($("#subject").value)}">
+    <label for="m-description">Description</label>
+    <textarea id="m-description">${esc($("#description").value)}</textarea>
+    <div class="row">
+      <button class="act primary" data-act="rerun">Re-run with these details</button>
+      <button class="act" data-act="cancel-modify">Cancel</button>
+    </div>
+  </div>`;
+  $("#m-description").focus();
+}
+
+async function rerunEnriched(){
+  const beforeText = `${$("#subject").value} ${$("#description").value}`.trim();
+  const beforeConf = conf();
+  const subject = $("#m-subject").value, description = $("#m-description").value;
+  const btn = document.querySelector('[data-act="rerun"]');
+  if (btn) { btn.disabled = true; btn.textContent = "Scoring\u2026"; }
+
+  const res = await fetch(`/api/model/${MODEL}`, {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({subject, description})
+  });
+  const d = await res.json();
+  if (d.error) { if (btn) { btn.disabled = false; btn.textContent = "Re-run with these details"; } return; }
+
+  $("#subject").value = subject; $("#description").value = description;
+  const afterConf = d.result.confidence;
+  const b = base();
+
+  await Decisions.send({...b, subject, description, enriched: true,
+    text_before: beforeText, text_after: `${subject} ${description}`.trim(),
+    confidence_before: beforeConf, confidence_after: afterConf});
+
+  render(d);
+  const host = $("#modify-host");
+  if (host && beforeConf != null && afterConf != null) {
+    const up = afterConf - beforeConf;
+    host.innerHTML = `<div class="lift ${up < 0 ? "down" : ""}">
+      <span class="n">${beforeConf.toFixed(3)}</span>
+      <span class="arrow">&rarr;</span>
+      <span class="n">${afterConf.toFixed(3)}</span>
+      <span class="cap">${up >= 0
+        ? `Confidence rose <b>${up.toFixed(3)}</b> once the detail was supplied.
+           The limit was the ticket, not the model.`
+        : `Confidence fell ${Math.abs(up).toFixed(3)} &mdash; recorded as it stands.`}</span>
+    </div>`;
+  }
+  refreshTally();
+}
+
+async function rejectSuggestion(){
+  const b = base();
+  await Decisions.send({...b, rejected: true});
+  const el = $("#done");
+  if (el) el.innerHTML = `<div class="recorded over"><span>&#10007;</span>
+    <span><b>${Decisions.esc(LAST.result.label)}</b> rejected. If you know what the
+    ticket does not say, add it below and score it again.</span></div>`;
+  modifyPanel();
+  refreshTally();
+}
+
 async function referOn(team){
   const b = base();
   await Decisions.send({...b, chosen_team: b.suggested_team, referred_to: team});
@@ -335,6 +419,12 @@ $("#out").addEventListener("click", e => {
   if (fl) return decide(KIND[MODEL], LAST.result.first_line);
   const b = e.target.closest('[data-act="accept"]');
   if (b) return decide(KIND[MODEL], LAST.result.label);
+  const k = e.target.closest("[data-act]");
+  if (!k) return;
+  if (k.dataset.act === "reject") return rejectSuggestion();
+  if (k.dataset.act === "modify") return modifyPanel();
+  if (k.dataset.act === "rerun") return rerunEnriched();
+  if (k.dataset.act === "cancel-modify") { $("#modify-host").innerHTML = ""; }
 });
 $("#out").addEventListener("change", e => {
   if (e.target.id === "pick" && e.target.value) decide(KIND[MODEL], e.target.value);

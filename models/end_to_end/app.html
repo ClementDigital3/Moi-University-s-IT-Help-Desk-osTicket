@@ -143,9 +143,12 @@ function decision(task, d){
       ${isTeam ? `<select class="override" data-refer="1" aria-label="Refer to another resolver">
         <option value="">Refer on&hellip;</option>
         ${d.distribution.map(x => `<option>${esc(x.label)}</option>`).join("")}
-      </select>` : ""}
+      </select>
+      <button class="act" data-act="reject">Reject</button>
+      <button class="act" data-act="modify">Add detail&hellip;</button>` : ""}
     </div>
     <div data-done="${esc(task)}"></div>
+    ${isTeam ? `<div id="modify-host"></div>` : ""}
   </div>`;
 }
 
@@ -247,6 +250,88 @@ async function decide(task, chosen){
   refreshTally();
 }
 
+
+/* ---------------------------------------------------------------------
+   Rejection and enrichment, Arm A.
+
+   Identical in behaviour to Arm B so the two can be compared on how they are
+   used. Only the endpoint differs: this re-scores through the end-to-end
+   model rather than the cascade.
+   --------------------------------------------------------------------- */
+function modifyPanel(){
+  const host = $("#modify-host"); if (!host) return;
+  host.innerHTML = `<div class="modify">
+    <h3>Add the detail the ticket is missing</h3>
+    <p class="why">The uncertainty here is usually missing information, not a weak
+      classifier. Supply what the user left out &mdash; which system, which building,
+      which device &mdash; and the ticket is scored again.</p>
+    <label for="m-subject">Subject</label>
+    <input type="text" id="m-subject" value="${esc($("#subject").value)}">
+    <label for="m-description">Description</label>
+    <textarea id="m-description">${esc($("#description").value)}</textarea>
+    <div class="row">
+      <button class="act primary" data-act="rerun">Re-run with these details</button>
+      <button class="act" data-act="cancel-modify">Cancel</button>
+    </div>
+  </div>`;
+  $("#m-description").focus();
+}
+
+async function rerunEnriched(){
+  const b = base();
+  const beforeText = `${$("#subject").value} ${$("#description").value}`.trim();
+  const beforeConf = b.confidence_team;
+  const subject = $("#m-subject").value, description = $("#m-description").value;
+
+  const btn = document.querySelector('[data-act="rerun"]');
+  if (btn) { btn.disabled = true; btn.textContent = "Scoring\u2026"; }
+
+  const res = await fetch("/api/predict", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({subject, description})
+  });
+  const d = await res.json();
+  if (d.error) { if (btn) { btn.disabled = false; btn.textContent = "Re-run with these details"; } return; }
+
+  $("#subject").value = subject; $("#description").value = description;
+  const afterConf = d.tasks[TASK_RTE].confidence;
+
+  await Decisions.send({
+    arm: "A", subject, description, enriched: true,
+    text_before: beforeText, text_after: `${subject} ${description}`.trim(),
+    confidence_before: beforeConf, confidence_after: afterConf,
+    suggested_team: d.tasks[TASK_RTE].label,
+  });
+
+  render(d);
+  const host = $("#modify-host");
+  if (host) {
+    const up = afterConf - beforeConf;
+    host.innerHTML = `<div class="lift ${up < 0 ? "down" : ""}">
+      <span class="n">${beforeConf.toFixed(3)}</span>
+      <span class="arrow">&rarr;</span>
+      <span class="n">${afterConf.toFixed(3)}</span>
+      <span class="cap">${up >= 0
+        ? `Routing confidence rose <b>${up.toFixed(3)}</b> once the detail was supplied.
+           The limit was the ticket, not the model.`
+        : `Routing confidence fell ${Math.abs(up).toFixed(3)}. The added detail did not
+           help here &mdash; recorded as it stands.`}</span>
+    </div>`;
+  }
+  refreshTally();
+}
+
+async function rejectSuggestion(){
+  const b = base();
+  await Decisions.send({...b, rejected: true});
+  const el = doneFor(TASK_RTE);
+  if (el) el.innerHTML = `<div class="recorded over"><span>&#10007;</span>
+    <span><b>${Decisions.esc(b.suggested_team)}</b> rejected. If you know what the
+    ticket does not say, add it below and score it again.</span></div>`;
+  modifyPanel();
+  refreshTally();
+}
+
 async function referOn(team){
   const b = base();
   await Decisions.send({...b, chosen_team: b.suggested_team, referred_to: team});
@@ -273,6 +358,12 @@ $("#out").addEventListener("click", e => {
   const u = e.target.closest("[data-use]");      if (u) return retrieval("use", u.dataset.use);
   const a = e.target.closest("[data-accept]");
   if (a) return decide(a.dataset.accept, LAST.tasks[a.dataset.accept].label);
+  const k = e.target.closest("[data-act]");
+  if (!k) return;
+  if (k.dataset.act === "reject") return rejectSuggestion();
+  if (k.dataset.act === "modify") return modifyPanel();
+  if (k.dataset.act === "rerun") return rerunEnriched();
+  if (k.dataset.act === "cancel-modify") { $("#modify-host").innerHTML = ""; }
 });
 $("#out").addEventListener("change", e => {
   if (e.target.dataset.pick && e.target.value) decide(e.target.dataset.pick, e.target.value);

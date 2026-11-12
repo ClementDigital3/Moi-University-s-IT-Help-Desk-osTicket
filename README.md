@@ -22,7 +22,20 @@ make demo       # six views at http://127.0.0.1:8000/
 make all        # rerun the whole pipeline
 ```
 
-Three views, one server:
+To show it on a projector, a phone, or a supervisor's laptop, serve it to the
+local network instead:
+
+```bash
+make demo-lan   # also at http://<this-machine>:8000/
+```
+
+That one prints a generated username and password, because off this machine the
+pages include unpublished findings and anyone who can reach the port could
+otherwise read them. The password is new each start and shown once; pin your own
+with `--auth demo:yourpassword`. This machine itself is exempt, so `make demo`
+and `localhost` never ask for anything.
+
+Six views, one server:
 
 | URL | Shows |
 |---|---|

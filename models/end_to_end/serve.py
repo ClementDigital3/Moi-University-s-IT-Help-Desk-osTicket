@@ -11,15 +11,22 @@ which is the only assumption worth making about a presentation room.
 
 --lan binds every interface instead of loopback, so other devices on the same
 network can reach it -- the machine driving the projector, a phone, a
-supervisor's laptop in the room. It stays off by default because the server has
-no authentication: anyone who can route to the port can use it. On a shared
-university network that is the whole network, which is fine for a demonstration
-and not fine for leaving running.
+supervisor's laptop in the room.
+
+--auth puts HTTP Basic authentication in front of everything. Give it
+user:password, or pass it bare to have a password generated and printed once.
+Loopback is exempt, so working on this machine is unaffected.
+
+Anything reachable beyond the local network should use it. The prototype serves
+unpublished Chapter Four findings and runs model inference on whatever it is
+sent; neither belongs on an open URL. There is no account system here and none
+is wanted -- one shared credential, held for as long as the demonstration
+lasts.
 
 The bundle is loaded once at startup, so the first prediction is as fast as the
 hundredth. Export it first with models.end_to_end.export.
 """
-import os, json, argparse, webbrowser
+import os, json, argparse, webbrowser, base64, hmac, secrets
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -79,7 +86,44 @@ EXAMPLES = [
 ]
 
 
+AUTH = {"user": None, "password": None}
+
+
+def _authorised(handler):
+    """
+    True if this request may proceed.
+
+    Loopback is exempt: a password on 127.0.0.1 only gets in the way of the
+    person running the server. Everything arriving over a network interface is
+    checked. Comparison is constant-time so a wrong password cannot be found a
+    character at a time.
+    """
+    if not AUTH["password"]:
+        return True
+    if handler.client_address[0] in ("127.0.0.1", "::1"):
+        return True
+    header = handler.headers.get("Authorization", "")
+    if not header.startswith("Basic "):
+        return False
+    try:
+        got = base64.b64decode(header[6:]).decode("utf-8", "replace")
+    except Exception:
+        return False
+    want = f"{AUTH['user']}:{AUTH['password']}"
+    return hmac.compare_digest(got, want)
+
+
 class Handler(BaseHTTPRequestHandler):
+    def _challenge(self):
+        body = b"Authentication required."
+        self.send_response(401)
+        self.send_header("WWW-Authenticate",
+                         'Basic realm="ICT Help Desk prototype", charset="UTF-8"')
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def _send(self, code, body, ctype="application/json"):
         data = body if isinstance(body, bytes) else body.encode("utf-8")
         self.send_response(code)
@@ -90,6 +134,8 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
+        if not _authorised(self):
+            return self._challenge()
         # The page accepts ?subject=&description= for bookmarkable demo links,
         # so route on the path alone.
         parsed = urlparse(self.path)
@@ -168,6 +214,8 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, json.dumps({"error": "not found"}))
 
     def do_POST(self):
+        if not _authorised(self):
+            return self._challenge()
         path = urlparse(self.path).path
         model_api = path.rsplit("/", 1)[-1] if path.startswith("/api/model/") else None
         if path not in ("/api/predict", "/api/cascade", "/api/decision") and \
@@ -284,10 +332,26 @@ def main():
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--lan", action="store_true",
                     help="serve on the local network, not just this machine")
+    ap.add_argument("--auth", nargs="?", const="generate", default=None,
+                    metavar="USER:PASS",
+                    help="require a password off-loopback; bare --auth generates one")
     ap.add_argument("--open", action="store_true", help="open a browser window")
     args = ap.parse_args()
     if args.lan:
         args.host = "0.0.0.0"
+    if args.auth:
+        if args.auth == "generate":
+            AUTH["user"], AUTH["password"] = "demo", secrets.token_urlsafe(9)
+        elif ":" in args.auth:
+            user, password = args.auth.split(":", 1)
+            # An empty half would leave AUTH["password"] falsy, and a falsy
+            # password means no checking at all -- the server would stand open
+            # while whoever typed this believed it was shut. Refuse instead.
+            if not user or not password:
+                ap.error("--auth needs both halves, as user:password")
+            AUTH["user"], AUTH["password"] = user, password
+        else:
+            ap.error("--auth takes user:password, or nothing at all")
 
     print("loading the deployed bundle ...")
     b = load()
@@ -308,10 +372,17 @@ def main():
     print(f"    Arm B   cascade             {url}cascade")
     print(f"            findings            {url}dashboard"
           + ("" if os.path.exists(DASHBOARD) else "   [not built - make dashboard]"))
+    if AUTH["password"]:
+        print(f"\n  password required off this machine", flush=True)
+        print(f"    user      {AUTH['user']}")
+        print(f"    password  {AUTH['password']}")
+        print(f"  (shown once; loopback is exempt)", flush=True)
     if lan_url:
         print(f"\n  on this machine   {url}")
         print(f"  on the network    {lan_url}")
-        print("\n  note: no authentication -- anyone who can reach this port can use it.")
+        if not AUTH["password"]:
+            print("\n  note: no authentication -- anyone who can reach this port can"
+                  " use it.\n  add --auth before exposing this beyond the local network.")
     print("\n  press Ctrl+C to stop\n")
     if args.open:
         webbrowser.open(url)

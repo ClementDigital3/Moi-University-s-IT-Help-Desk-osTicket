@@ -82,9 +82,10 @@ export:
 
 demo-lan: export
 	@echo ""
-	@echo "  serving on the local network - anyone who can reach this machine can use it"
+	@echo "  serving on the local network, behind a generated password"
+	@echo "  (printed below; this machine itself is exempt)"
 	@echo ""
-	$(PY) -m models.end_to_end.serve --lan
+	$(PY) -m models.end_to_end.serve --lan --auth
 
 demo: export
 	@echo ""

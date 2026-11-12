@@ -184,11 +184,37 @@ def fig_representation():
     save(fig, "fig47_representation.png")
 
 
+def fig_learning_curve():
+    """What corpus growth buys — and where it stops buying."""
+    df = pd.read_csv(os.path.join(TABLES, "t418_learning_curve.csv"))
+    tasks = list(df["Task"].unique())
+    fig, ax = plt.subplots(figsize=(7.8, 4.0))
+    for t, col in zip(tasks, [C_A, C_B]):
+        d = df[df["Task"] == t].sort_values("Training tickets")
+        ax.plot(d["Training tickets"], d["Macro F1"], "o-", color=col, lw=2, label=t)
+        if "SD" in d:
+            ax.fill_between(d["Training tickets"], d["Macro F1"] - d["SD"],
+                            d["Macro F1"] + d["SD"], color=col, alpha=.13, lw=0)
+        last = d.iloc[-1]
+        ax.text(last["Training tickets"] * 1.01, last["Macro F1"],
+                f"{last['Macro F1']:.3f}", fontsize=8.5, va="center")
+    # where growth stops paying
+    ax.axvline(738, color="var" if False else "#898781", ls=":", lw=1.2)
+    ax.text(790, ax.get_ylim()[0] + 0.012,
+            "beyond here, 2,955 more tickets\nbuy under +0.02",
+            fontsize=8, color="#52514e")
+    ax.set_xlabel("training tickets")
+    ax.set_ylabel("held-out macro F1")
+    ax.legend(frameon=False, fontsize=9, loc="lower right")
+    ax.set_title("What corpus size buys", fontsize=11)
+    save(fig, "fig48_learning_curve.png")
+
+
 if __name__ == "__main__":
     os.makedirs(FIGURES, exist_ok=True)
     print("writing figures:")
     for f in (fig_class_dist, fig_armA_models, fig_head_to_head, fig_topk,
-              fig_confusion, fig_ablation, fig_representation):
+              fig_confusion, fig_ablation, fig_representation, fig_learning_curve):
         try:
             f()
         except Exception as e:

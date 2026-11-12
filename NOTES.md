@@ -111,6 +111,39 @@ event loop, so the `await` inside the re-run never resumes and nothing records.
 Verify the click-to-function wiring with a marker set before the first `await`,
 and the rest through the API.
 
+## Learning from use, not from volume
+
+**Table 4.18 settles a question worth settling before building a feedback loop.**
+Fitting each decision on increasing fractions of the corpus and scoring on the
+untouched held-out set:
+
+| Training tickets | Classification | Routing |
+|---|---|---|
+| 184 | 0.788 | 0.623 |
+| 738 | 0.863 | 0.671 |
+| 3,693 | 0.876 | 0.689 |
+
+The first 738 tickets buy **+0.076** and **+0.047**. The next 2,955 buy **+0.013**
+and **+0.018**. The curve is flat: *more tickets of the same kind buy almost
+nothing*, because the limit is what tickets contain, not how many there are.
+
+So the system should learn — but not from accumulation. What carries new
+information is a resolver **disagreeing**, and a resolver **supplying the detail
+a ticket lacks**. `shared/feedback.py` records every decision with its
+provenance and treats the three classes differently:
+
+| Provenance | Trained on by default | Why |
+|---|---|---|
+| `enriched` | yes | text with the ambiguity removed — the ceiling, lifted |
+| `corrected` | yes | the human disagreed; information the model lacked |
+| `confirmed` | **no** | may be agreement, may be a rubber stamp |
+
+**Confirmations are excluded on purpose.** A model retrained on its own accepted
+suggestions reinforces what it already believed, and the more the resolver
+trusts it the tighter that loop becomes. That is the automation-bias risk behind
+Section 5.4.2's concern with resolver trust. Including them is a policy you can
+choose — `trainable(policy=(...))` — but it should be measured, not assumed.
+
 ## Calibrated thresholds
 
 Three numbers in the prototype are operating points, measured on the held-out

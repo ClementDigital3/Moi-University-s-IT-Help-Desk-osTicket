@@ -3,6 +3,7 @@
 PY := .venv/bin/python
 
 .PHONY: help setup data prep models analysis chapters dashboard demo demo-lan all \
+        learn-status learn-curve \
         m1 m2 m3 end2end export clean-cache clean-results status
 
 help:
@@ -36,6 +37,10 @@ help:
 	@echo "                        /cascade         all three chained"
 	@echo "                        /dashboard       Chapter Four evidence"
 	@echo ""
+	@echo "  LEARNING FROM USE"
+	@echo "    make learn-status move recorded decisions into the training store"
+	@echo "    make learn-curve  measure what corpus size buys (Table 4.18)"
+	@echo ""
 	@echo "  HOUSEKEEPING"
 	@echo "    make status       what has been run, what is stale"
 	@echo "    make clean-cache  drop cached embeddings and fitted models (forces a refit)"
@@ -58,8 +63,12 @@ analysis:
 	$(PY) -m analysis.assemble_tables
 	$(PY) -m analysis.representation
 	$(PY) -m analysis.abstention
+	$(PY) -m analysis.learn --curve
 	$(PY) -m analysis.compare
 	$(PY) -m analysis.figures
+
+learn-status: ; $(PY) -m analysis.learn --promote
+learn-curve:  ; $(PY) -m analysis.learn --curve
 
 chapters:  ; $(PY) -m analysis.write_chapters
 dashboard: ; $(PY) -m analysis.build_dashboard

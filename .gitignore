@@ -25,3 +25,6 @@ results/decisions.jsonl
 .DS_Store
 .idea/
 .vscode/
+
+# Collected resolver decisions (runtime state, grows with use)
+data/feedback/

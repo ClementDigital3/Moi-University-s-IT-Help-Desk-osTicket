@@ -62,6 +62,7 @@ def load_results():
                    ("recvar", "t413_recommendation_variants.csv"),
                    ("branch", "t414_branch_vs_combined.csv"),
                    ("abstain", "t417_abstention.csv"),
+                   ("curve", "t418_learning_curve.csv"),
                    ("clsA", "t4_armA_cls_perclass.csv"), ("rteA", "t4_armA_route_perclass.csv"),
                    ("clsB", "t4_armB_cls_perclass.csv"), ("rteB", "t4_armB_route_perclass.csv")):
         p = os.path.join(TABLES, f)
@@ -898,6 +899,61 @@ def s47(w, R):
                 f"abstention rule and the first-line routing rule turn out to be the "
                 f"same rule, which is a stronger result than either alone.")
 
+    if R.get("curve") is not None:
+        c = R["curve"]
+        w.para("On learning from what accumulates.", bold=True, space_after=4)
+        w.para(
+            "Section 1.1 describes the help desk record as an accumulated body of "
+            "institutional knowledge, and the record does keep accumulating: every "
+            "ticket a resolver settles adds a labelled example. A natural expectation "
+            "follows, that the system should improve as the record grows. Table 4.18 "
+            "tests that expectation by fitting each decision on increasing fractions of "
+            "the training partition and scoring every fit on the untouched held-out "
+            "partition.")
+        w.table(c, "Table 4.18: What corpus size buys, held-out macro F1",
+                cols=["Task", "Training tickets", "Corpus %", "Macro F1", "SD"],
+                fontsize=9, first_col_w=2000)
+        w.figure("fig48_learning_curve.png",
+                 "Figure 4.8: What corpus size buys")
+        try:
+            rows = []
+            for t in c["Task"].unique():
+                d = c[c["Task"] == t].sort_values("Training tickets")
+                early = d[d["Corpus %"] <= 20]["Macro F1"].iloc[-1] - d["Macro F1"].iloc[0]
+                late = d["Macro F1"].iloc[-1] - d[d["Corpus %"] <= 20]["Macro F1"].iloc[-1]
+                n_early = int(d[d["Corpus %"] <= 20]["Training tickets"].iloc[-1])
+                n_late = int(d["Training tickets"].iloc[-1]) - n_early
+                rows.append((t, n_early, early, n_late, late))
+            frag = "; ".join(
+                f"for {t.lower()}, the first {ne:,} tickets are worth {e:+.4f} and the "
+                f"next {nl:,} only {l:+.4f}" for t, ne, e, nl, l in rows)
+            w.para(
+                f"The answer qualifies the expectation rather than confirming it. Both "
+                f"curves rise steeply and then flatten: {frag}. Beyond roughly a fifth of "
+                f"the corpus, additional tickets of the same kind buy almost nothing.")
+        except Exception:
+            pass
+        w.para(
+            "This is the finding of Section 4.7 reaching the same conclusion from a "
+            "different direction. If performance were limited by how much the models "
+            "had seen, the curves would still be climbing. They are flat because the "
+            "limit is what the tickets contain: a ticket that does not say which system "
+            "is at fault cannot be routed by any amount of comparable evidence "
+            "elsewhere in the corpus.")
+        w.para(
+            "The practical consequence is specific, and it is not the one usually drawn. "
+            "A system that learns by accumulating more of the same tickets will not "
+            "improve measurably, and the effort of collecting them is better spent "
+            "elsewhere. What does carry new information is a resolver disagreeing with "
+            "a suggestion, and a resolver supplying the detail a ticket lacks. The "
+            "artefact therefore records every decision with its provenance — whether the "
+            "resolver corrected the model, enriched the ticket, or merely confirmed what "
+            "was proposed — and treats the three differently. Confirmations are excluded "
+            "from training by default: a model retrained on its own accepted suggestions "
+            "reinforces whatever it already believed, and the more a resolver trusts it "
+            "the tighter that loop becomes, which is the automation-bias risk implicit "
+            "in Section 5.4.2's concern with resolver trust.")
+
     w.para("On the artefact.", bold=True, space_after=4)
     w.para(
         "Section 1.6 treated a prototype as an eventual artefact potentially informed "
@@ -1178,6 +1234,13 @@ def s542(w, R):
         "researcher. What is outstanding is the study with resolvers that would turn "
         "those counters into evidence about time to first correct assignment, "
         "reassignment rate and resolver trust.",
+        "Study what the system learns from use, not from volume. Table 4.18 shows "
+        "that additional tickets of the same kind stop improving either decision "
+        "beyond roughly a fifth of the present corpus, so the question worth "
+        "investigating is whether resolver corrections and resolver-enriched tickets "
+        "— which carry information the corpus does not — improve the models where "
+        "ordinary accumulation does not. The artefact records both, separated from "
+        "mere confirmations; what is missing is enough of them to test.",
         "Validate the abstention threshold of Table 4.17 in operation. The trade-off "
         "reported there is measured on held-out data; whether resolvers find a model "
         "that declines on roughly one ticket in eight more useful than one that always "
@@ -1260,6 +1323,7 @@ NEW_TABLES = [
     "Table 4.15: Arm B — Historical-Resolution Recommendation",
     "Table 4.16: Operational Comparison of the Two Arms",
     "Table 4.17: Abstention Trade-off for Resolver Routing",
+    "Table 4.18: What Corpus Size Buys",
 ]
 
 NEW_FIGURES = [
@@ -1270,6 +1334,7 @@ NEW_FIGURES = [
     "Figure 4.5: End-to-End versus Task-Specific Models",
     "Figure 4.6: Routing Confusion Matrices",
     "Figure 4.7: Historical-Resolution Recommendation",
+    "Figure 4.8: What Corpus Size Buys",
 ]
 
 

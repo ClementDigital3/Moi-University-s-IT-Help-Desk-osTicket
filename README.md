@@ -44,7 +44,31 @@ Six views, one server:
 | `/routing` | **Arm B · B2** — resolver team, on its own |
 | `/recommendation` | **Arm B · B3** — prior resolutions, on its own |
 | `/cascade` | **Arm B** — B1 → B2 → B3 chained |
+| `/tickets` | **the queue** — where each ticket was routed, and every hand-off |
 | `/dashboard` | the findings, with a present mode (`P` or `?present`) |
+
+## Where the tickets went
+
+Acting on a suggestion opens a ticket in a small SQLite database
+(`results/helpdesk.db`, created on first use — nothing to install). Two tables:
+`tickets` holds where each one sits now, `events` holds everything that
+happened to it in order.
+
+```bash
+make tickets                        # where they are, and which teams pass work on
+python -m tools.tickets MU-0007     # one ticket's full history
+```
+
+This exists because the decision log alone cannot answer it. That file records
+one row per click with no ticket identity anywhere in it, so a ticket that is
+rejected, enriched, re-scored and referred leaves five unrelated lines that
+nothing joins. "Which team is holding this" was not a hard query against it; it
+was an impossible one.
+
+The queue reports a **reassignment rate** against the corpus baseline of 13.5%.
+Section 5.4.2 asks future work to evaluate routing on reassignment rather than
+classification accuracy — measuring it the same way is what makes the live
+figure comparable.
 
 Every suggestion carries **Accept** and **override** controls. Clicking either
 records what was suggested against what was chosen, and the running override

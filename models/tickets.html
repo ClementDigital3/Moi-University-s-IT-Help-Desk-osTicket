@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ticket queue</title>
+<link rel="stylesheet" href="/static/ui.css">
+<!-- not deferred: the inline script below uses helpers from ui.js -->
+<script src="/static/ui.js"></script>
+<style>
+  /* page-specific only; everything else comes from the shared stylesheet */
+  .qtable{width:100%;border-collapse:collapse;font-size:var(--t-md)}
+  .qtable th{text-align:left;font-size:var(--t-xs);text-transform:uppercase;
+    letter-spacing:.07em;color:var(--ink-3);font-weight:720;
+    padding:0 var(--s3) var(--s2) 0;border-bottom:1px solid var(--border)}
+  .qtable td{padding:9px var(--s3) 9px 0;border-bottom:1px solid var(--line);
+    vertical-align:top}
+  .qtable tr:last-child td{border-bottom:none}
+  .qtable tbody tr{cursor:pointer}
+  .qtable tbody tr:hover{background:var(--surface-2)}
+  .num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+  .st{display:inline-block;font-size:var(--t-xs);font-weight:700;
+    padding:2px 8px;border-radius:var(--r-pill);white-space:nowrap}
+  .st-open{background:var(--accent-soft);color:var(--accent-soft-ink);
+    border:1px solid var(--border)}
+  .st-referred{background:var(--warn-bg);color:var(--warn-ink);
+    border:1px solid var(--warn-line)}
+  .st-resolved{background:var(--good-bg);color:var(--good-ink);
+    border:1px solid var(--good-line)}
+  .st-duplicate{background:var(--surface-2);color:var(--ink-3);
+    border:1px solid var(--border)}
+  .hops{font-size:var(--t-xs);color:var(--warn-ink);font-weight:700}
+  /* the journey: one row per thing that happened, in order */
+  .trail{list-style:none;margin:var(--s3) 0 0;padding:0;position:relative}
+  .trail li{position:relative;padding:0 0 var(--s4) 26px}
+  .trail li::before{content:"";position:absolute;left:5px;top:5px;width:9px;
+    height:9px;border-radius:50%;background:var(--accent);
+    box-shadow:0 0 0 3px var(--surface)}
+  .trail li:not(:last-child)::after{content:"";position:absolute;left:9px;
+    top:16px;bottom:0;width:1px;background:var(--line-2)}
+  .trail .k{font-weight:700;font-size:var(--t-sm);text-transform:capitalize}
+  .trail .w{font-size:var(--t-sm);color:var(--ink-2);margin-top:1px}
+  .trail .t{font-size:var(--t-xs);color:var(--ink-3);
+    font-family:var(--mono);margin-top:2px}
+  .trail li.ev-referred::before{background:var(--warn)}
+  .trail li.ev-resolved::before{background:var(--good)}
+  .trail li.ev-rejected::before{background:var(--bad)}
+  .bench{font-size:var(--t-sm);color:var(--ink-3);margin-top:var(--s2)}
+  .bench b{color:var(--ink)}
+  .srch{display:flex;gap:var(--s2);margin-bottom:var(--s3)}
+  .srch input{flex:1;min-width:0}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar">
+    <nav class="nav" aria-label="Views">
+      <span class="ngroup">Arm A</span>
+      <a href="/">End-to-end</a>
+      <span class="ndiv"></span>
+      <span class="ngroup">Arm B</span>
+      <a href="/classification">B1 Category</a>
+      <a href="/routing">B2 Routing</a>
+      <a href="/recommendation">B3 Resolutions</a>
+      <a href="/cascade">Cascade</a>
+      <span class="ndiv"></span>
+      <a href="/tickets" aria-current="page">Queue</a>
+      <a href="/dashboard">Findings</a>
+    </nav>
+    <div class="brand">
+      <h1>Ticket queue</h1>
+      <span class="sub">Where each ticket was routed, and every hand-off on the way.</span>
+    </div>
+    <button class="btn-ghost" id="themebtn" type="button">Dark</button>
+    <span class="badge">Research prototype &middot; Moi University ICT Directorate</span>
+  </div>
+
+  <main class="cols">
+    <aside class="pane">
+      <div class="card">
+        <h2>Look up a ticket</h2>
+        <div class="srch">
+          <input id="ref" type="text" placeholder="MU-0001" aria-label="Ticket reference">
+          <button class="act" id="find" type="button">Find</button>
+        </div>
+        <div id="journey"></div>
+      </div>
+
+      <div class="card">
+        <h2>Hand-offs</h2>
+        <p class="hint" style="margin-top:0">
+          Which teams pass work to which. A route that keeps reappearing here is
+          a routing error the model makes repeatedly, not bad luck.
+        </p>
+        <div id="handoffs"></div>
+      </div>
+    </aside>
+
+    <section class="pane">
+      <div class="card">
+        <h2>Where the tickets are</h2>
+        <div class="tally" id="stats"></div>
+        <div class="bench" id="bench"></div>
+      </div>
+
+      <div class="card">
+        <h2>By team</h2>
+        <p class="hint" style="margin-top:0">
+          <b>Inherited</b> arrived by referral rather than directly &mdash; the team is
+          absorbing another's misroutes. <b>Passed on</b> is the reverse.
+        </p>
+        <div id="routing"></div>
+      </div>
+
+      <div class="card">
+        <h2>Recent tickets</h2>
+        <div id="queue"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+// The corpus records 13.5% of tickets as reassigned. Showing the live figure
+// against it is the whole point of measuring reassignment the same way:
+// Section 5.4.2 asks future work to evaluate routing on this rather than on
+// classification accuracy, so the two numbers have to be comparable.
+const CORPUS_REASSIGNMENT = 0.135;
+
+function statusPill(s) {
+  return `<span class="st st-${esc(s)}">${esc(s)}</span>`;
+}
+
+function render(d) {
+  const s = d.stats;
+  $("#stats").innerHTML = [
+    ["Tickets", s.total], ["Open", s.open], ["Resolved", s.resolved],
+    ["Duplicates", s.duplicate], ["Teams", s.teams],
+  ].map(([k, v]) => `<span class="t"><b>${v}</b>${esc(k)}</span>`).join("");
+
+  if (s.total === 0) {
+    $("#bench").innerHTML = "";
+    $("#routing").innerHTML = `<div class="empty">No tickets yet. Accept, refer or
+      resolve a suggestion on any of the model pages and it will appear here.</div>`;
+    $("#queue").innerHTML = "";
+    $("#handoffs").innerHTML = `<div class="empty">No hand-offs yet.</div>`;
+    return;
+  }
+
+  const live = s.reassignment_rate;
+  if (live !== null && live !== undefined) {
+    const pct = (live * 100).toFixed(1), base = (CORPUS_REASSIGNMENT * 100).toFixed(1);
+    const dir = live > CORPUS_REASSIGNMENT ? "above" : live < CORPUS_REASSIGNMENT
+      ? "below" : "level with";
+    $("#bench").innerHTML = `Reassignment rate <b>${pct}%</b> &mdash; ${dir}
+      the corpus baseline of <b>${base}%</b>.
+      <span style="color:var(--ink-3)">${s.ever_referred} of ${s.total} tickets
+      were handed on at least once.</span>`;
+  }
+
+  const max = Math.max(...d.routing.map(r => r.total), 1);
+  $("#routing").innerHTML = `<table class="qtable">
+    <thead><tr><th>Team</th><th class="num">Open</th><th class="num">Total</th>
+      <th class="num">Inherited</th><th class="num">Passed on</th></tr></thead>
+    <tbody>${d.routing.map(r => `<tr data-team="${esc(r.team)}">
+      <td>${esc(r.team)}
+        <div class="meter" style="margin:5px 0 0"><i style="width:${
+          Math.round(r.total / max * 100)}%"></i></div></td>
+      <td class="num">${r.open}</td><td class="num">${r.total}</td>
+      <td class="num">${r.inherited || "&mdash;"}</td>
+      <td class="num">${r.passed_on || "&mdash;"}</td></tr>`).join("")}</tbody></table>`;
+
+  $("#queue").innerHTML = `<table class="qtable">
+    <thead><tr><th>Ref</th><th>Subject</th><th>Routed to</th>
+      <th>Status</th></tr></thead>
+    <tbody>${d.queue.map(t => `<tr data-ref="${esc(t.ref)}">
+      <td class="tid">${esc(t.ref)}</td>
+      <td>${esc(t.subject) || "<span style='color:var(--ink-3)'>(no subject)</span>"}
+        ${t.category ? `<div class="res">${esc(t.category)}</div>` : ""}</td>
+      <td>${esc(t.team) || "&mdash;"}
+        ${t.hops > 0 ? `<div class="hops">${t.hops} hand-off${
+          t.hops > 1 ? "s" : ""}</div>` : ""}</td>
+      <td>${statusPill(t.status)}</td></tr>`).join("")}</tbody></table>`;
+
+  $("#handoffs").innerHTML = d.handoffs.length
+    ? `<table class="qtable"><tbody>${d.handoffs.map(h => `<tr>
+        <td>${esc(h.from_team)}<div class="res">&rarr; ${esc(h.to_team)}</div></td>
+        <td class="num">${h.n}</td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">No hand-offs yet.</div>`;
+}
+
+function renderJourney(j) {
+  if (!j) {
+    $("#journey").innerHTML = `<div class="err">No ticket with that reference.</div>`;
+    return;
+  }
+  const t = j.ticket;
+  $("#journey").innerHTML = `
+    <div class="dmeta" style="margin-bottom:var(--s2)">
+      <b>${esc(t.ref)}</b> &middot; ${statusPill(t.status)}
+      ${t.hops > 0 ? `<span class="hops">&middot; ${t.hops} hand-off${
+        t.hops > 1 ? "s" : ""}</span>` : ""}
+    </div>
+    <div style="font-weight:640">${esc(t.subject) || "(no subject)"}</div>
+    ${t.description ? `<div class="res">${esc(t.description)}</div>` : ""}
+    <ul class="trail">${j.events.map(e => {
+      const where = e.kind === "referred"
+        ? `${esc(e.from_team || "?")} &rarr; ${esc(e.to_team || "?")}`
+        : esc(e.to_team || e.category || e.detail || "");
+      return `<li class="ev-${esc(e.kind)}">
+        <div class="k">${esc(e.kind)}</div>
+        ${where ? `<div class="w">${where}</div>` : ""}
+        <div class="t">${esc(e.at)}</div></li>`;
+    }).join("")}</ul>`;
+}
+
+async function load(params = "") {
+  try {
+    const r = await fetch("/api/tickets" + params);
+    render(await r.json());
+  } catch (e) {
+    $("#routing").innerHTML = `<div class="err">Could not load: ${esc(e.message)}</div>`;
+  }
+}
+
+async function find(ref) {
+  if (!ref) return;
+  const r = await fetch("/api/tickets?ref=" + encodeURIComponent(ref));
+  renderJourney(r.ok ? await r.json() : null);
+}
+
+$("#find").addEventListener("click", () => find($("#ref").value.trim()));
+$("#ref").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") find($("#ref").value.trim());
+});
+// Clicking any ticket row opens its history, so the trail is one click from
+// the queue rather than something you have to know to type a reference for.
+document.addEventListener("click", (e) => {
+  const row = e.target.closest("tr[data-ref]");
+  if (!row) return;
+  $("#ref").value = row.dataset.ref;
+  find(row.dataset.ref);
+});
+
+load();
+</script>
+</body>
+</html>

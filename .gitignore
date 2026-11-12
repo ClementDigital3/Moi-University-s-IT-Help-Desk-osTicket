@@ -21,6 +21,13 @@ results/artifacts/
 *.log
 results/decisions.jsonl
 
+# The ticket queue. Live operational state, rebuilt by use, not a source file.
+# The -wal and -shm sidecars are SQLite's write-ahead log; they appear whenever
+# the server is running and committing them would be meaningless.
+results/helpdesk.db
+results/helpdesk.db-wal
+results/helpdesk.db-shm
+
 # Editor / OS
 .DS_Store
 .idea/

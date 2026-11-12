@@ -4,7 +4,7 @@ PY := .venv/bin/python
 
 .PHONY: help setup data prep models analysis chapters dashboard demo demo-lan all \
         learn-status learn-curve \
-        m1 m2 m3 end2end export clean-cache clean-results status
+        m1 m2 m3 end2end export clean-cache clean-results status tickets
 
 help:
 	@echo ""
@@ -41,6 +41,9 @@ help:
 	@echo "    make learn-status move recorded decisions into the training store"
 	@echo "    make learn-curve  measure what corpus size buys (Table 4.18)"
 	@echo ""
+	@echo "  TICKETS"
+	@echo "    make tickets      where tickets went, and every hand-off"
+	@echo ""
 	@echo "  HOUSEKEEPING"
 	@echo "    make status       what has been run, what is stale"
 	@echo "    make clean-cache  drop cached embeddings and fitted models (forces a refit)"
@@ -67,6 +70,9 @@ analysis:
 	$(PY) -m analysis.resolution_ranking
 	$(PY) -m analysis.compare
 	$(PY) -m analysis.figures
+
+tickets:
+	$(PY) -m tools.tickets
 
 learn-status: ; $(PY) -m analysis.learn --promote
 learn-curve:  ; $(PY) -m analysis.learn --curve

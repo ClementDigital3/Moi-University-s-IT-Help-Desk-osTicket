@@ -40,13 +40,25 @@ window.Decisions = (function(){
   const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g,
     c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
+  /* The ticket currently on screen, once the server has given it a reference.
+     Every later action on the same ticket sends this back, so a reject, an
+     enrichment and a referral are three events on ONE ticket rather than three
+     separate tickets. Cleared by newTicket() when the form is scored afresh --
+     without that, the next ticket would inherit this one's identity and the
+     queue would quietly merge two different problems into one row. */
+  let currentRef = null;
+
+  function newTicket(){ currentRef = null; }
+  function ticketRef(){ return currentRef; }
+
   async function send(payload){
     try {
       const r = await fetch("/api/decision", {
         method: "POST", headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(payload)
+        body: JSON.stringify({...payload, db_ref: currentRef})
       });
       const d = await r.json();
+      if (d && d.ticket && d.ticket.ref) currentRef = d.ticket.ref;
       dispatchEvent(new CustomEvent("decision", {detail: d}));
       return d;
     } catch (e) {
@@ -117,5 +129,6 @@ window.Decisions = (function(){
   }
 
   const summary = () => fetch("/api/decisions").then(r => r.json()).catch(() => null);
-  return {send, confirmation, tally, summary, esc, fixes};
+  return {send, confirmation, tally, summary, esc, fixes,
+          newTicket, ticketRef};
 })();

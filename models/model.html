@@ -40,6 +40,7 @@
       <a href="/recommendation" data-m="recommendation">B3 Resolutions</a>
       <a href="/cascade">Cascade</a>
       <span class="ndiv"></span>
+      <a href="/tickets">Queue</a>
       <a href="/dashboard">Findings</a>
     </nav>
     <div class="brand"><h1 id="title">Model</h1><span class="sub" id="subtitle"></span></div>
@@ -448,6 +449,9 @@ $("#f").addEventListener("submit", async e => {
   e.preventDefault();
   const go = $("#go");
   go.disabled = true; go.textContent = "Running…";
+  // A fresh submission is a different ticket: drop the previous reference so
+  // the queue does not file two unrelated problems under one row.
+  Decisions.newTicket();
   try {
     const res = await fetch(`/api/model/${MODEL}`, {
       method: "POST", headers: {"Content-Type": "application/json"},

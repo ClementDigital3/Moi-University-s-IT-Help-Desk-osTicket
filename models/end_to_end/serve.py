@@ -36,6 +36,7 @@ from .predict import load, predict
 HERE = os.path.dirname(os.path.abspath(__file__))
 PAGE = os.path.join(HERE, "app.html")
 CASCADE_PAGE = os.path.join(ROOT, "models", "cascade.html")
+TICKETS_PAGE = os.path.join(ROOT, "models", "tickets.html")
 MODEL_PAGE = os.path.join(ROOT, "models", "model.html")
 # One stylesheet for every page, so colour, type and spacing cannot drift
 # between them. The dashboard inlines the same file at build time, because it
@@ -211,6 +212,24 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, json.dumps({"error": str(e)}))
         if path == "/api/examples":
             return self._send(200, json.dumps(EXAMPLES))
+        if path in ("/tickets", "/tickets.html"):
+            with open(TICKETS_PAGE, "r", encoding="utf-8") as f:
+                return self._send(200, f.read().encode("utf-8"),
+                                  "text/html; charset=utf-8")
+        if path == "/api/tickets":
+            from shared import db
+            q = parse_qs(parsed.query)
+            ref = (q.get("ref") or [""])[0]
+            if ref:
+                found = db.journey(ref)
+                if found is None:
+                    return self._send(404, json.dumps({"error": "no such ticket"}))
+                return self._send(200, json.dumps(found))
+            return self._send(200, json.dumps({
+                "stats": db.stats(), "routing": db.routing(),
+                "handoffs": db.handoffs(),
+                "queue": db.queue(status=(q.get("status") or [""])[0] or None,
+                                  team=(q.get("team") or [""])[0] or None)}))
         self._send(404, json.dumps({"error": "not found"}))
 
     def do_POST(self):
@@ -227,8 +246,16 @@ class Handler(BaseHTTPRequestHandler):
             subj, desc = payload.get("subject", ""), payload.get("description", "")
             if path == "/api/decision":
                 from shared.decisions import record, summary
-                record({**payload, "subject": subj, "description": desc})
-                return self._send(200, json.dumps({"ok": True, "summary": summary()}))
+                from shared import db
+                row = record({**payload, "subject": subj, "description": desc})
+                # The log keeps the suggested-vs-chosen pair; the database keeps
+                # the ticket. Same click, two questions: how often the model is
+                # overridden, and where the ticket actually went.
+                ticket = db.apply_decision({**payload, **row,
+                                            "db_ref": payload.get("db_ref")})
+                return self._send(200, json.dumps({
+                    "ok": True, "summary": summary(),
+                    "ticket": ticket}))
             if path == "/api/predict":
                 return self._send(200, json.dumps(predict(subj, desc)))
             if model_api:

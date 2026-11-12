@@ -63,6 +63,7 @@ def load_results():
                    ("branch", "t414_branch_vs_combined.csv"),
                    ("abstain", "t417_abstention.csv"),
                    ("curve", "t418_learning_curve.csv"),
+                   ("rank", "t419_resolution_ranking.csv"),
                    ("clsA", "t4_armA_cls_perclass.csv"), ("rteA", "t4_armA_route_perclass.csv"),
                    ("clsB", "t4_armB_cls_perclass.csv"), ("rteB", "t4_armB_route_perclass.csv")):
         p = os.path.join(TABLES, f)
@@ -786,6 +787,45 @@ def s46(w, R):
         f"The paired McNemar test on Top-1 hits gives p = {sig['p-value']}, so the "
         f"difference is "
         f"{'statistically significant' if str(sig['Significant at .05']).lower() == 'yes' else 'not statistically significant'}.")
+    if R.get("rank") is not None:
+        rk = R["rank"]
+        w.para(
+            "One refinement follows from what a resolver is actually looking for. The "
+            "retrieval ranks tickets, but a resolver wants the fix, and the two are not "
+            "the same thing: of the five tickets returned for a query, only about two "
+            "carry different resolutions, and for roughly a quarter of queries all five "
+            "carry the same one. A list of five is in those cases a list of one, "
+            "repeated.")
+        w.table(rk, "Table 4.19: Ranking distinct resolutions rather than tickets",
+                cols=["Retrieved (K)", "Ranking", "Distinct resolutions shown",
+                      "Top-1 applies"],
+                rename={"Top-1 applies": "First option applies"},
+                fontsize=9, first_col_w=1500)
+        try:
+            base = float(rk[(rk["Retrieved (K)"] == 5) &
+                            (rk["Ranking"] == "Top single similarity")]["Top-1 applies"].iloc[0])
+            best = rk.loc[rk["Top-1 applies"].idxmax()]
+            w.para(
+                f"Collapsing the retrieved tickets onto the distinct resolutions they "
+                f"carry makes a further choice available, because where several "
+                f"retrieved tickets were settled by the same fix, that agreement is "
+                f"itself evidence. Ordering the collapsed list by the similarity summed "
+                f"across the tickets behind each fix, rather than by the single closest "
+                f"ticket mentioning it, raises the chance that the first option offered "
+                f"actually applies from {base:.4f} to {float(best['Top-1 applies']):.4f}. "
+                f"The gain costs nothing but retrieving further down the ranking before "
+                f"collapsing, and the resolver is shown fewer options rather than more.")
+        except Exception:
+            pass
+        w.para(
+            "The prototype presents each distinct fix with the number of past tickets it "
+            "settled and the rate at which a fix retrieved at that similarity transferred "
+            "on held-out data — 98.8% above a similarity of 0.80, 96.0% between 0.70 and "
+            "0.80, falling to 64.1% between 0.50 and 0.60. Above 0.70 it offers to "
+            "resolve the ticket with that fix outright; below, it offers the same fix as "
+            "a reference. The threshold is a reading of the measured transfer rate rather "
+            "than a judgement about confidence.")
+
     w.para(
         "Two observations matter more than the margin between the arms. First, MRR "
         "well above Top-1 accuracy in both arms means that when the best match is not "
@@ -1324,6 +1364,7 @@ NEW_TABLES = [
     "Table 4.16: Operational Comparison of the Two Arms",
     "Table 4.17: Abstention Trade-off for Resolver Routing",
     "Table 4.18: What Corpus Size Buys",
+    "Table 4.19: Ranking Distinct Resolutions",
 ]
 
 NEW_FIGURES = [

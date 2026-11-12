@@ -235,6 +235,11 @@ const RENDER = {
           </div>
         </div>` : ""}
       ${warn}
+      ${x.resolutions && x.resolutions.length ? `
+        <div class="psub" style="margin:0 0 8px">${x.resolutions.length} distinct fix${
+          x.resolutions.length === 1 ? "" : "es"}, ordered by the evidence behind each.</div>
+        ${Decisions.fixes(x.resolutions)}
+        <div class="psub" style="margin:14px 0 6px">The tickets themselves</div>` : ""}
       <table><thead><tr><th style="width:92px">Ticket</th>
         <th>Problem &amp; resolution</th><th style="width:66px">Match</th></tr></thead><tbody>
       ${x.matches.map(m => `<tr>
@@ -415,6 +420,8 @@ $("#out").addEventListener("click", e => {
   if (u) return decide("Resolution", u.dataset.use);
   const d = e.target.closest("[data-dup]");
   if (d) return closeDuplicate(d.dataset.dup);
+  const rv = e.target.closest("[data-resolve]");
+  if (rv) return decide("Resolution", rv.dataset.resolve);
   const fl = e.target.closest('[data-act="first-line"]');
   if (fl) return decide(KIND[MODEL], LAST.result.first_line);
   const b = e.target.closest('[data-act="accept"]');

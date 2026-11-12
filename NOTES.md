@@ -144,6 +144,38 @@ trusts it the tighter that loop becomes. That is the automation-bias risk behind
 Section 5.4.2's concern with resolver trust. Including them is a policy you can
 choose — `trainable(policy=(...))` — but it should be measured, not assumed.
 
+## Ranking fixes, not tickets
+
+A resolver wants the fix, not the ticket. Of five tickets retrieved only ~2.2
+carry different resolutions, and for 255 of 924 queries **all five are the same
+fix repeated**.
+
+So retrieval now collapses onto distinct fixes. Two things fall out:
+
+- **Agreement is evidence.** Where several retrieved tickets were settled the
+  same way, that counts. Ranking the collapsed list by similarity *summed over
+  the tickets behind each fix* beats ranking by the single closest ticket:
+  **0.897 → 0.921** (Table 4.19), while showing *fewer* options (2.77, not 4.15).
+- **Near-identical fixes must merge.** Grouping on exact text leaves the same
+  fix listed three times, differing only in "Ticket closed" style boilerplate.
+  Merging on token-set overlap ≥ 0.80 handles it without a list of known
+  phrases, so it survives an export whose boilerplate reads differently.
+
+**Applicability is measured, not asserted.** How often a retrieved fix actually
+transferred, on held-out data:
+
+| Similarity | Transfers |
+|---|---|
+| ≥ 0.80 | 0.988 |
+| 0.70–0.80 | 0.960 |
+| 0.60–0.70 | 0.865 |
+| 0.50–0.60 | 0.641 |
+
+Above **0.70** the interface offers *Resolve with this*; below, the same fix is
+offered as a reference. Note this is distinct from the duplicate flag: a
+duplicate is the same **ticket**, a reusable fix is a different ticket with the
+same **answer**.
+
 ## Calibrated thresholds
 
 Three numbers in the prototype are operating points, measured on the held-out

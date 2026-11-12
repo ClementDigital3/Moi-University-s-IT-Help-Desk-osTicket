@@ -64,6 +64,7 @@ analysis:
 	$(PY) -m analysis.representation
 	$(PY) -m analysis.abstention
 	$(PY) -m analysis.learn --curve
+	$(PY) -m analysis.resolution_ranking
 	$(PY) -m analysis.compare
 	$(PY) -m analysis.figures
 

@@ -88,6 +88,34 @@ window.Decisions = (function(){
     return bits.map(b => `<span class="t">${b}</span>`).join("");
   }
 
+  /* One card per distinct fix: what it was, how much stands behind it, and
+     how often a fix retrieved at that similarity actually transferred. */
+  function fixes(groups, opts){
+    if (!groups || !groups.length) return "";
+    const o = opts || {};
+    return groups.map(g => {
+      const a = g.applicability || {};
+      const rate = a.observed_transfer_rate
+        ? ` &middot; applied in ${(a.observed_transfer_rate * 100).toFixed(1)}% of held-out cases at this similarity`
+        : "";
+      return `<div class="fix ${g.can_resolve ? "apply" : ""}">
+        <div class="fixhead">
+          <span class="fixband">${esc(a.band || "")}</span>
+          <span class="fixev">resolved ${g.seen_in} past ticket${g.seen_in === 1 ? "" : "s"}
+            &middot; closest ${g.similarity.toFixed(3)}</span>
+        </div>
+        <div class="fixtext">${esc(g.resolution)}</div>
+        <div class="fixfoot">
+          ${g.can_resolve
+            ? `<button class="act primary act-sm" data-resolve="${esc(g.ticket_id)}">Resolve with this</button>`
+            : `<button class="act act-sm" data-use="${esc(g.ticket_id)}">Use as reference</button>`}
+          <span class="fixsrc">${esc(g.tickets.slice(0, 4).join(", "))}${g.tickets.length > 4 ? "\u2026" : ""}</span>
+        </div>
+        <div class="hint" style="margin-top:6px">${esc(a.band || "")}${rate}</div>
+      </div>`;
+    }).join("");
+  }
+
   const summary = () => fetch("/api/decisions").then(r => r.json()).catch(() => null);
-  return {send, confirmation, tally, summary, esc};
+  return {send, confirmation, tally, summary, esc, fixes};
 })();

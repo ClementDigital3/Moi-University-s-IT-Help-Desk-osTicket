@@ -290,3 +290,24 @@ select.override{font:inherit;font-size:var(--t-sm);padding:5px 9px;
 .lift .cap{font-size:var(--t-sm);color:var(--good-ink);flex:1 1 220px;line-height:1.45}
 .lift.down{background:var(--warn-bg);border-color:var(--warn-line)}
 .lift.down .cap{color:var(--warn-ink)}
+
+/* ---------------------------------------------------------------------
+   Distinct fixes, ranked by the evidence behind them.
+
+   A resolver wants options, not the same fix listed five times. Each card
+   is one fix, with how many past tickets it resolved and how often a fix
+   retrieved at that similarity actually transferred on held-out data.
+   --------------------------------------------------------------------- */
+.fix{border:1px solid var(--line);border-radius:var(--r);padding:var(--s3) var(--s4);
+  background:var(--plane)}
+.fix + .fix{margin-top:var(--s2)}
+.fix.apply{border-color:var(--good-line);background:var(--good-bg)}
+.fixhead{display:flex;align-items:baseline;gap:var(--s2);flex-wrap:wrap;margin-bottom:6px}
+.fixband{font-size:var(--t-xs);text-transform:uppercase;letter-spacing:.06em;font-weight:720;
+  color:var(--ink-3)}
+.fix.apply .fixband{color:var(--good-ink)}
+.fixev{font-size:var(--t-xs);color:var(--ink-3);margin-left:auto;font-variant-numeric:tabular-nums}
+.fixtext{font-size:var(--t-md);line-height:1.5}
+.fixfoot{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;margin-top:var(--s2);
+  padding-top:var(--s2);border-top:1px dashed var(--line)}
+.fixsrc{font-size:var(--t-xs);color:var(--ink-3);font-family:var(--mono)}

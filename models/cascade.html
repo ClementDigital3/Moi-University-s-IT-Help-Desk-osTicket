@@ -210,6 +210,12 @@ function render(d){
         </div>
       </div>` : ""}
     ${warn}
+    ${x.resolutions && x.resolutions.length ? `
+      <div class="psub" style="margin:0 0 8px">${x.resolutions.length} distinct fix${
+        x.resolutions.length === 1 ? "" : "es"} across ${x.matches.length}+ similar tickets,
+        ordered by the evidence behind each.</div>
+      ${Decisions.fixes(x.resolutions)}
+      <div class="psub" style="margin:14px 0 6px">The tickets themselves</div>` : ""}
     <table><thead><tr><th style="width:92px">Ticket</th>
       <th>Problem &amp; resolution</th><th style="width:66px">Match</th></tr></thead><tbody>
     ${x.matches.map(m => `<tr>
@@ -379,6 +385,14 @@ async function closeDuplicate(ticketId){
   refreshTally();
 }
 
+async function resolveWith(ticketId){
+  await Decisions.send({...base(), resolution_used: ticketId, resolved_with: ticketId});
+  const el = $("#res-done");
+  if (el) el.innerHTML = `<div class="recorded"><span>&#10003;</span>
+    <span>Resolved using the fix from <b>${Decisions.esc(ticketId)}</b>.</span></div>`;
+  refreshTally();
+}
+
 async function reuse(ticketId){
   await Decisions.send({...base(), resolution_used: ticketId});
   const el = $("#res-done");
@@ -390,10 +404,11 @@ async function reuse(ticketId){
 $("#out").addEventListener("click", e => {
   const row = e.target.closest(".rrow.pick");
   if (row) return decideTeam(row.dataset.team);
-  const b = e.target.closest("[data-act],[data-use],[data-dup]");
+  const b = e.target.closest("[data-act],[data-use],[data-dup],[data-resolve]");
   if (!b) return;
   if (b.dataset.use) return reuse(b.dataset.use);
   if (b.dataset.dup) return closeDuplicate(b.dataset.dup);
+  if (b.dataset.resolve) return resolveWith(b.dataset.resolve);
   if (b.dataset.act === "cat-accept") return decideCategory(LAST.category.label);
   if (b.dataset.act === "team-accept") return decideTeam(LAST.routing.label);
   if (b.dataset.act === "first-line") return decideTeam(LAST.routing.first_line, true);

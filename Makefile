@@ -114,6 +114,7 @@ status:
 	@printf "  %-34s %s\n" "comparison"       "$$([ -f results/tables/t47_head_to_head.csv ] && echo ok || echo 'MISSING - make analysis')"
 	@printf "  %-34s %s\n" "dashboard"        "$$([ -f results/dashboard.html ] && echo ok || echo 'MISSING - make dashboard')"
 	@printf "  %-34s %s\n" "serving bundles"  "$$([ -f results/deploy/end_to_end.joblib ] && [ -f results/deploy/classification.joblib ] && [ -f results/deploy/routing.joblib ] && [ -f results/deploy/recommendation.joblib ] && echo 'ok (all four)' || echo 'MISSING - make export')"
+	@printf "  %-34s %s\n" "navigation"       "$$($(PY) -m tools.check_nav >/dev/null 2>&1 && echo ok || echo 'DRIFTED - python -m tools.check_nav')"
 	@echo ""
 
 clean-cache:

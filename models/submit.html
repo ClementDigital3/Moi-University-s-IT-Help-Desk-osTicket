@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Submit a ticket</title>
+<link rel="stylesheet" href="/static/ui.css">
+<!-- not deferred: the inline script below uses Nav and Decisions -->
+<script src="/static/ui.js"></script>
+<style>
+  /* page-specific only; the rest comes from the shared stylesheet */
+  .intake{max-width:var(--measure);margin:0 auto}
+  .lead{color:var(--ink-2);font-size:var(--t-md);margin:0 0 var(--s4)}
+  .field{margin-bottom:var(--s4)}
+  .field label{display:block;font-size:var(--t-sm);font-weight:700;
+    margin-bottom:5px;color:var(--ink-2)}
+  .field .why{font-weight:400;color:var(--ink-3);font-size:var(--t-xs)}
+  .field textarea{min-height:120px;resize:vertical}
+  .done{text-align:center;padding:var(--s5) var(--s4)}
+  .ref{font-family:var(--mono);font-size:var(--t-2xl);font-weight:700;
+    color:var(--accent-soft-ink);display:block;margin:var(--s2) 0 var(--s1)}
+  .routed{font-size:var(--t-md);color:var(--ink-2);margin-top:var(--s3)}
+  .routed b{color:var(--ink)}
+  .lowconf{background:var(--warn-bg);border:1px solid var(--warn-line);
+    color:var(--warn-ink);border-radius:var(--r-sm);padding:10px 13px;
+    font-size:var(--t-sm);margin-top:var(--s3);text-align:left}
+  .selfhelp{margin-top:var(--s4);text-align:left}
+  .selfhelp h3{font-size:var(--t-sm);text-transform:uppercase;
+    letter-spacing:.07em;color:var(--ink-3);margin:0 0 var(--s2)}
+  .sh{border:1px solid var(--border);border-radius:var(--r-sm);
+    padding:10px 12px;margin-bottom:7px;background:var(--surface-2)}
+  .sh .t{font-size:var(--t-sm);color:var(--ink-2)}
+  .again{margin-top:var(--s5)}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="bar">
+    <nav id="nav"></nav>
+    <div class="brand">
+      <h1>Submit a ticket</h1>
+      <span class="sub">Describe the problem &mdash; it is triaged and queued on arrival.</span>
+    </div>
+    <button class="btn-ghost" id="themebtn" type="button">Dark</button>
+    <span class="badge">Research prototype &middot; Moi University ICT Directorate</span>
+  </div>
+
+  <main>
+    <div class="card intake" id="panel">
+      <p class="lead">
+        This is the requester's view. What you write here is scored by the three
+        Arm&nbsp;B models, routed to a team, and placed in the queue. Nothing is
+        closed automatically &mdash; a person decides.
+      </p>
+      <form id="f">
+        <div class="field">
+          <label for="subject">Subject</label>
+          <input id="subject" type="text" autocomplete="off"
+                 placeholder="Cannot log into the student portal">
+        </div>
+        <div class="field">
+          <label for="description">What is happening?
+            <span class="why">&mdash; the more specific, the better the routing</span>
+          </label>
+          <textarea id="description"
+            placeholder="Since Monday the portal rejects my password. I have tried resetting it twice. Reg. no. and unit codes help if the problem is about records."></textarea>
+        </div>
+        <div class="field">
+          <label for="requester">Your name <span class="why">&mdash; optional</span></label>
+          <input id="requester" type="text" autocomplete="off" placeholder="Optional">
+        </div>
+        <div class="actions">
+          <button class="act primary" id="go" type="submit">Submit ticket</button>
+          <button class="act" id="eg" type="button">Use an example</button>
+        </div>
+      </form>
+      <div id="err"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+Nav.render("/submit");
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+let EXAMPLES = [];
+fetch("/api/examples").then(r => r.json()).then(x => { EXAMPLES = x; })
+  .catch(() => {});
+let nextExample = 0;
+
+$("#eg").addEventListener("click", () => {
+  if (!EXAMPLES.length) return;
+  const e = EXAMPLES[nextExample++ % EXAMPLES.length];
+  $("#subject").value = e.subject;
+  $("#description").value = e.description;
+  $("#description").focus();
+});
+
+function confirmView(d) {
+  const t = d.ticket, tri = d.triage || {};
+  const routed = tri.routing || {};
+  const cat = tri.category || {};
+  const fixes = (tri.retrieval && tri.retrieval.resolutions) || [];
+
+  // An abstention is shown as what it is. A requester told "routed to the help
+  // desk" when the model had no confident answer would read that as a decision
+  // rather than a deferral, and the thesis argues precisely for making the
+  // difference visible.
+  const unsure = routed.abstain;
+
+  $("#panel").innerHTML = `
+    <div class="done">
+      <div style="font-size:var(--t-sm);color:var(--ink-3);text-transform:uppercase;
+                  letter-spacing:.07em;font-weight:720">Ticket logged</div>
+      <span class="ref">${esc(t.ref)}</span>
+      <div style="color:var(--ink-3);font-size:var(--t-sm)">
+        Keep this reference &mdash; you can look it up on the queue.</div>
+
+      <div class="routed">
+        Routed to <b>${esc(t.team || "the help desk")}</b>${
+          cat.label ? ` as <b>${esc(cat.label)}</b>` : ""}.
+      </div>
+
+      ${unsure ? `<div class="lowconf">
+        The model was <b>not confident</b> about this one, so it has gone to the
+        first line rather than straight to a specialist team. A person will look
+        at it and route it properly. Adding detail &mdash; an error message, a
+        unit code, which building &mdash; is what usually makes the difference.
+      </div>` : ""}
+
+      ${fixes.length ? `<div class="selfhelp">
+        <h3>While you wait &mdash; these fixed similar tickets</h3>
+        ${fixes.slice(0, 2).map(g => `<div class="sh">
+          <div class="t">${esc(g.resolution || g.text || "")}</div></div>`).join("")}
+      </div>` : ""}
+
+      <div class="actions again">
+        <a class="act primary" href="/tickets">See it in the queue</a>
+        <button class="act" id="another" type="button">Submit another</button>
+      </div>
+    </div>`;
+
+  $("#another").addEventListener("click", () => location.reload());
+}
+
+$("#f").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const subject = $("#subject").value.trim();
+  const description = $("#description").value.trim();
+  if (!subject && !description) {
+    $("#err").innerHTML = `<div class="err">Describe the problem before submitting.</div>`;
+    return;
+  }
+  const go = $("#go");
+  go.disabled = true; go.textContent = "Submitting…";
+  $("#err").innerHTML = "";
+  try {
+    const r = await fetch("/api/intake", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({subject, description,
+                            requester: $("#requester").value.trim()}),
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    confirmView(d);
+  } catch (err) {
+    $("#err").innerHTML = `<div class="err">${esc(err.message)}</div>`;
+    go.disabled = false; go.textContent = "Submit ticket";
+  }
+});
+</script>
+</body>
+</html>

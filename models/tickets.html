@@ -54,19 +54,7 @@
 <body>
 <div class="app">
   <div class="bar">
-    <nav class="nav" aria-label="Views">
-      <span class="ngroup">Arm A</span>
-      <a href="/">End-to-end</a>
-      <span class="ndiv"></span>
-      <span class="ngroup">Arm B</span>
-      <a href="/classification">B1 Category</a>
-      <a href="/routing">B2 Routing</a>
-      <a href="/recommendation">B3 Resolutions</a>
-      <a href="/cascade">Cascade</a>
-      <span class="ndiv"></span>
-      <a href="/tickets" aria-current="page">Queue</a>
-      <a href="/dashboard">Findings</a>
-    </nav>
+    <nav id="nav"></nav>
     <div class="brand">
       <h1>Ticket queue</h1>
       <span class="sub">Where each ticket was routed, and every hand-off on the way.</span>
@@ -121,6 +109,7 @@
 </div>
 
 <script>
+Nav.render("/tickets");
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
   c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -193,12 +182,41 @@ function render(d) {
     : `<div class="empty">No hand-offs yet.</div>`;
 }
 
+let TEAMS = [];
+fetch("/api/teams").then(r => r.json()).then(x => { TEAMS = x; }).catch(() => {});
+let OPEN_REF = null;
+
+function actionsFor(t) {
+  const closed = t.status === "resolved" || t.status === "duplicate";
+  // A closed ticket offers reopen and nothing else. Showing resolve on an
+  // already-resolved ticket invites a second resolution event that never
+  // happened, and the event trail is the evidence here.
+  if (closed) {
+    return `<div class="actions" style="margin-top:var(--s3)">
+      <button class="act" data-do="reopen">Reopen</button></div>
+      <div class="hint" style="margin-top:var(--s2)">
+        Reopening says the fix did not hold &mdash; a stronger signal than a
+        resolver declining the suggestion, so it is kept in the trail.</div>`;
+  }
+  return `<div class="actions" style="margin-top:var(--s3)">
+      <button class="act primary" data-do="resolve">Resolve&hellip;</button>
+      <select class="override" id="refer" aria-label="Refer to another team">
+        <option value="">Refer to&hellip;</option>
+        ${TEAMS.filter(x => x !== t.team).map(x =>
+          `<option>${esc(x)}</option>`).join("")}
+      </select>
+    </div>
+    <div id="resolvebox"></div>`;
+}
+
 function renderJourney(j) {
   if (!j) {
     $("#journey").innerHTML = `<div class="err">No ticket with that reference.</div>`;
+    OPEN_REF = null;
     return;
   }
   const t = j.ticket;
+  OPEN_REF = t.ref;
   $("#journey").innerHTML = `
     <div class="dmeta" style="margin-bottom:var(--s2)">
       <b>${esc(t.ref)}</b> &middot; ${statusPill(t.status)}
@@ -207,6 +225,10 @@ function renderJourney(j) {
     </div>
     <div style="font-weight:640">${esc(t.subject) || "(no subject)"}</div>
     ${t.description ? `<div class="res">${esc(t.description)}</div>` : ""}
+    <div class="dmeta" style="margin-top:var(--s2)">
+      with <b>${esc(t.team || "nobody")}</b>${
+        t.category ? ` &middot; ${esc(t.category)}` : ""}</div>
+    ${actionsFor(t)}
     <ul class="trail">${j.events.map(e => {
       const where = e.kind === "referred"
         ? `${esc(e.from_team || "?")} &rarr; ${esc(e.to_team || "?")}`
@@ -232,6 +254,55 @@ async function find(ref) {
   const r = await fetch("/api/tickets?ref=" + encodeURIComponent(ref));
   renderJourney(r.ok ? await r.json() : null);
 }
+
+async function act(body) {
+  const r = await fetch("/api/ticket", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ref: OPEN_REF, ...body}),
+  });
+  const d = await r.json();
+  if (d.error) {
+    $("#journey").insertAdjacentHTML("beforeend",
+      `<div class="err" style="margin-top:var(--s2)">${esc(d.error)}</div>`);
+    return;
+  }
+  // Both views move together. A queue that still showed the ticket as open
+  // after it was closed in the panel beside it would be worse than no queue.
+  await find(OPEN_REF);
+  await load();
+}
+
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-do]");
+  if (!btn || !OPEN_REF) return;
+  const kind = btn.dataset.do;
+  if (kind === "reopen") return act({action: "reopen"});
+  if (kind === "resolve") {
+    $("#resolvebox").innerHTML = `
+      <div class="modify" style="margin-top:var(--s2)">
+        <label for="rtext" style="font-size:var(--t-sm);font-weight:700">
+          What fixed it?</label>
+        <textarea id="rtext" rows="3" style="width:100%;margin-top:5px"
+          placeholder="Reset the account and re-synchronised it with the LMS."></textarea>
+        <div class="actions" style="margin-top:var(--s2)">
+          <button class="act primary" data-do="resolve-go">Resolve</button>
+          <button class="act" data-do="resolve-cancel">Cancel</button>
+        </div>
+      </div>`;
+    $("#rtext").focus();
+    return;
+  }
+  if (kind === "resolve-cancel") { $("#resolvebox").innerHTML = ""; return; }
+  if (kind === "resolve-go") {
+    return act({action: "resolve", resolution: $("#rtext").value.trim()});
+  }
+});
+
+document.addEventListener("change", (e) => {
+  if (e.target.id === "refer" && e.target.value) {
+    act({action: "refer", team: e.target.value});
+  }
+});
 
 $("#find").addEventListener("click", () => find($("#ref").value.trim()));
 $("#ref").addEventListener("keydown", (e) => {

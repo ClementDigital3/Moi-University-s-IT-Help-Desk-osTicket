@@ -34,19 +34,7 @@
 <body>
 <div class="app">
   <div class="bar">
-    <nav class="nav" aria-label="Views">
-      <span class="ngroup">Arm A</span>
-      <a href="/">End-to-end</a>
-      <span class="ndiv"></span>
-      <span class="ngroup">Arm B</span>
-      <a href="/classification">B1 Category</a>
-      <a href="/routing">B2 Routing</a>
-      <a href="/recommendation">B3 Resolutions</a>
-      <a href="/cascade" aria-current="page">Cascade</a>
-      <span class="ndiv"></span>
-      <a href="/tickets">Queue</a>
-      <a href="/dashboard">Findings</a>
-    </nav>
+    <nav id="nav"></nav>
     <div class="brand">
       <h1>Arm B — Cascade</h1>
       <span class="sub">B1, B2 and B3 chained &mdash; each feeding the next.</span>
@@ -93,6 +81,7 @@
 </div>
 
 <script>
+Nav.render("/cascade");
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g,
   c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));

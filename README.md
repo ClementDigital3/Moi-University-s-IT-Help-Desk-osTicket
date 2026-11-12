@@ -35,7 +35,19 @@ otherwise read them. The password is new each start and shown once; pin your own
 with `--auth demo:yourpassword`. This machine itself is exempt, so `make demo`
 and `localhost` never ask for anything.
 
-Six views, one server:
+One server, two kinds of page. **Operate** is the system doing its job;
+**Research** is the evidence about whether it does it well. The menu is grouped
+that way because a reader who wants to watch a ticket move and a reader who
+wants to check the comparison are not the same reader.
+
+**Operate**
+
+| URL | Shows |
+|---|---|
+| `/submit` | the requester's view — describe a problem, it is triaged and queued |
+| `/tickets` | the queue — where every ticket sits, with resolve / refer / reopen |
+
+**Research**
 
 | URL | Shows |
 |---|---|
@@ -44,8 +56,18 @@ Six views, one server:
 | `/routing` | **Arm B · B2** — resolver team, on its own |
 | `/recommendation` | **Arm B · B3** — prior resolutions, on its own |
 | `/cascade` | **Arm B** — B1 → B2 → B3 chained |
-| `/tickets` | **the queue** — where each ticket was routed, and every hand-off |
 | `/dashboard` | the findings, with a present mode (`P` or `?present`) |
+
+A ticket's whole life runs through the first two: submitted at `/submit`, scored
+by B1 → B2 → B3 on arrival, filed under the team the router chose, then referred
+or resolved from `/tickets`. Nothing closes itself. Chapter Five argues for
+routing as a ranked suggestion subject to confirmation, and an intake that
+resolved its own tickets would contradict the thesis it demonstrates.
+
+When the router **abstains** — below 0.30 confidence — the ticket goes to the
+first line rather than to the specialist team it was unsure about, and the
+guess it would have made is kept in the event trail instead of being thrown
+away.
 
 ## Where the tickets went
 

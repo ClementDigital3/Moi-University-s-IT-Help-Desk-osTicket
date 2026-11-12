@@ -37,6 +37,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PAGE = os.path.join(HERE, "app.html")
 CASCADE_PAGE = os.path.join(ROOT, "models", "cascade.html")
 TICKETS_PAGE = os.path.join(ROOT, "models", "tickets.html")
+SUBMIT_PAGE = os.path.join(ROOT, "models", "submit.html")
 MODEL_PAGE = os.path.join(ROOT, "models", "model.html")
 # One stylesheet for every page, so colour, type and spacing cannot drift
 # between them. The dashboard inlines the same file at build time, because it
@@ -212,6 +213,22 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, json.dumps({"error": str(e)}))
         if path == "/api/examples":
             return self._send(200, json.dumps(EXAMPLES))
+        if path in ("/submit", "/submit.html"):
+            with open(SUBMIT_PAGE, "r", encoding="utf-8") as f:
+                return self._send(200, f.read().encode("utf-8"),
+                                  "text/html; charset=utf-8")
+        if path == "/api/teams":
+            from shared import db
+            # Every team the router knows, not merely the ones seen so far: a
+            # menu built only from past tickets cannot offer the team a ticket
+            # has never reached, which is exactly the misroute worth fixing.
+            seen = set(db.teams())
+            try:
+                from models.routing.predict import load as load_routing
+                seen |= set(load_routing()["classes"])
+            except Exception:
+                pass                     # a referral menu is worth having anyway
+            return self._send(200, json.dumps(sorted(t for t in seen if t)))
         if path in ("/tickets", "/tickets.html"):
             with open(TICKETS_PAGE, "r", encoding="utf-8") as f:
                 return self._send(200, f.read().encode("utf-8"),
@@ -237,7 +254,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._challenge()
         path = urlparse(self.path).path
         model_api = path.rsplit("/", 1)[-1] if path.startswith("/api/model/") else None
-        if path not in ("/api/predict", "/api/cascade", "/api/decision") and \
+        if path not in ("/api/predict", "/api/cascade", "/api/decision",
+                        "/api/intake", "/api/ticket") and \
                 model_api not in MODEL_ROUTES.values():
             return self._send(404, json.dumps({"error": "not found"}))
         try:
@@ -256,6 +274,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, json.dumps({
                     "ok": True, "summary": summary(),
                     "ticket": ticket}))
+            if path == "/api/intake":
+                return self._send(200, json.dumps(intake(payload)))
+            if path == "/api/ticket":
+                return self._send(200, json.dumps(ticket_action(payload)))
             if path == "/api/predict":
                 return self._send(200, json.dumps(predict(subj, desc)))
             if model_api:
@@ -265,6 +287,109 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, json.dumps({"error": str(e)}))
         except Exception as e:                      # keep the demo alive
             self._send(500, json.dumps({"error": f"{type(e).__name__}: {e}"}))
+
+
+# Used only if the routing bundle somehow omits it; the model normally reports
+# its own first line, and that value is the one that should win.
+FIRST_LINE_FALLBACK = "Help Desk (Tier 1)"
+
+
+def intake(payload):
+    """
+    A ticket arrives, and is triaged on the way in.
+
+    This is the front door of the working system: the requester describes a
+    problem and the ticket is scored, routed and queued in one step, rather
+    than someone pasting text into a model page to see what it says. The
+    suggestion is recorded as a suggestion -- the ticket opens with the team
+    the model proposed, and the event trail says the model proposed it, so a
+    later correction is visible as a correction rather than silently replacing
+    history.
+
+    Nothing is auto-resolved. Chapter Five argues for routing as a ranked
+    suggestion subject to confirmation, and an intake that closed its own
+    tickets would contradict the thesis it is meant to demonstrate.
+    """
+    from shared import db
+
+    subject = (payload.get("subject") or "").strip()
+    description = (payload.get("description") or "").strip()
+    if not subject and not description:
+        return {"error": "Describe the problem before submitting."}
+
+    try:
+        scored = cascade(subject, description)
+    except Exception as e:                       # triage must not lose a ticket
+        scored = {"error": f"{type(e).__name__}: {e}"}
+
+    category = team = None
+    confidence = None
+    abstained = False
+    proposed = None
+    if "error" not in scored:
+        r = scored["routing"]
+        category = scored["category"]["label"]
+        proposed = r["label"]
+        confidence = r.get("confidence")
+        abstained = bool(r.get("abstain"))
+        # An abstention is the model declining to choose. Filing the ticket
+        # with its low-confidence guess anyway would make the threshold
+        # decorative: the ticket would land on a specialist team on the
+        # strength of a score the model itself called too weak to act on.
+        # Below the threshold it goes to the first line, which is what the
+        # abstention is FOR, and the guess is kept in the trail rather than
+        # thrown away.
+        team = r.get("first_line", FIRST_LINE_FALLBACK) if abstained else proposed
+
+    row = db.open_ticket(subject=subject, description=description, arm="B",
+                         category=category, team=team, confidence=confidence,
+                         actor=(payload.get("requester") or "requester"))
+    db.note(row["id"], "suggested", actor="model", to_team=team,
+            category=category, confidence=confidence,
+            detail=(f"abstained at {confidence} -- would have said {proposed};"
+                    f" sent to the first line instead") if abstained else None)
+    return {"ok": True, "ticket": row, "triage": scored}
+
+
+def ticket_action(payload):
+    """
+    Work a ticket that is already in the queue: resolve, refer, reopen, assign.
+
+    Separate from /api/decision, which exists to record a suggestion being
+    accepted or overridden at the moment it is shown. This is someone opening
+    the queue later and acting on what is there, which is a different event
+    with a different meaning for the override statistics -- conflating them
+    would count queue housekeeping as model feedback.
+    """
+    from shared import db
+
+    ref = payload.get("ref")
+    action = payload.get("action")
+    actor = payload.get("actor") or "resolver"
+    found = db.journey(ref)
+    if found is None:
+        return {"error": "no such ticket"}
+    tid = found["ticket"]["id"]
+
+    if action == "resolve":
+        row = db.resolve(tid, payload.get("resolution"), actor=actor)
+    elif action == "refer":
+        to = (payload.get("team") or "").strip()
+        if not to:
+            return {"error": "Choose a team to refer to."}
+        row = db.refer(tid, to, actor=actor, detail=payload.get("note"))
+    elif action == "reopen":
+        row = db.reopen(tid, actor=actor, detail=payload.get("note"))
+    elif action == "assign":
+        to = (payload.get("team") or "").strip()
+        if not to:
+            return {"error": "Choose a team."}
+        row = db.assign(tid, to, actor=actor)
+    elif action == "duplicate":
+        row = db.mark_duplicate(tid, payload.get("of"), actor=actor)
+    else:
+        return {"error": f"unknown action: {action}"}
+    return {"ok": True, "ticket": row}
 
 
 def _card(name):
@@ -347,10 +472,6 @@ def cascade(subject, description):
     routing = p2(frame=frame, category=category.pop("proba_vector"))
     retrieval = p3(frame=frame, category=category["label"])
     return {"category": category, "routing": routing, "retrieval": retrieval}
-
-    def log_message(self, fmt, *args):
-        if "/api/predict" in (args[0] if args else ""):
-            print(f"  scored a ticket  [{self.log_date_time_string()}]")
 
 
 def main():

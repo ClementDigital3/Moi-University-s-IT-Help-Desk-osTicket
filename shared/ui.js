@@ -30,6 +30,62 @@
 })();
 
 /* =====================================================================
+   One navigation, defined once.
+
+   It was copied into every page, which is why it drifted: adding a view
+   meant editing six files and the sixth was always missed. Defining it
+   here also lets it say something the copies could not -- the pages fall
+   into two groups that are used for different things.
+
+   OPERATE is the system doing its job: a ticket arrives, it is triaged,
+   it sits in a queue until someone closes it. RESEARCH is the evidence
+   about whether that job is done well -- the two arms, scored separately,
+   and the findings. A reader who wants to see the system work and a reader
+   who wants to check the comparison are not the same reader, and the menu
+   should not pretend they are.
+   ===================================================================== */
+window.Nav = (function(){
+  const VIEWS = [
+    {group: "Operate"},
+    {href: "/submit",         label: "Submit a ticket"},
+    {href: "/tickets",        label: "Queue"},
+    {group: "Arm A"},
+    {href: "/",               label: "End-to-end"},
+    {group: "Arm B"},
+    {href: "/classification", label: "B1 Category"},
+    {href: "/routing",        label: "B2 Routing"},
+    {href: "/recommendation", label: "B3 Resolutions"},
+    {href: "/cascade",        label: "Cascade"},
+    {group: ""},
+    {href: "/dashboard",      label: "Findings"},
+  ];
+
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g,
+    c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+  /* `current` is matched against href rather than read from the URL so a
+     page served at more than one path (/tickets and /tickets.html) still
+     marks itself, and so a page can say which view it belongs to even when
+     its own path is not in the list. */
+  function render(current){
+    const el = document.getElementById("nav");
+    if (!el) return;
+    el.setAttribute("aria-label", "Views");
+    el.className = "nav";
+    el.innerHTML = VIEWS.map(v => {
+      if (v.group !== undefined)
+        return v.group ? `<span class="ngroup">${esc(v.group)}</span>`
+                       : `<span class="ndiv"></span>`;
+      const here = v.href === current;
+      return `<a href="${esc(v.href)}"${here ? ' aria-current="page"' : ""}>${
+        esc(v.label)}</a>`;
+    }).join("");
+  }
+
+  return {render, VIEWS};
+})();
+
+/* =====================================================================
    Recording what the resolver decided.
 
    Every page that shows a suggestion uses these, so "accept" and

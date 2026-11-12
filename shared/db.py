@@ -165,6 +165,13 @@ def refer(ticket_id, to_team, actor=None, detail=None):
         if row is None:
             return None
         frm = row["team"]
+        # Referring a ticket to the team already holding it is not a hand-off.
+        # Counting it as one would let the reassignment rate -- a figure this
+        # project reports against the corpus's 13.5% -- be inflated by a
+        # no-op, so the move is refused rather than recorded.
+        if frm is not None and frm == to_team:
+            return dict(con.execute("SELECT * FROM tickets WHERE id=?",
+                                    (ticket_id,)).fetchone())
         con.execute("UPDATE tickets SET team=?, status=?, hops=hops+1 WHERE id=?",
                     (to_team, REFERRED, ticket_id))
         _event(con, ticket_id, "referred", actor=actor,
@@ -411,5 +418,67 @@ def apply_decision(entry):
     try:
         row = con.execute("SELECT * FROM tickets WHERE id=?", (tid,)).fetchone()
         return dict(row) if row else None
+    finally:
+        con.close()
+
+
+def reopen(ticket_id, actor=None, detail=None):
+    """
+    Put a closed ticket back into the queue.
+
+    A resolution that did not hold is the most informative thing a help desk
+    records: it says the suggested fix was applied and was wrong, which is a
+    stronger negative signal than a resolver declining the suggestion in the
+    first place. Closing it again later would otherwise erase that.
+    """
+    con = connect()
+    try:
+        row = con.execute("SELECT status FROM tickets WHERE id=?",
+                          (ticket_id,)).fetchone()
+        if row is None:
+            return None
+        con.execute("UPDATE tickets SET status=?, closed_at=NULL WHERE id=?",
+                    (OPEN, ticket_id))
+        _event(con, ticket_id, "reopened", actor=actor, detail=detail)
+        con.commit()
+        return dict(con.execute("SELECT * FROM tickets WHERE id=?",
+                                (ticket_id,)).fetchone())
+    finally:
+        con.close()
+
+
+def assign(ticket_id, team, actor=None):
+    """
+    Set the holding team without counting it as a hand-off.
+
+    Distinct from refer() on purpose. Correcting a ticket that was never
+    actioned is not the same event as a team working it and passing it on, and
+    folding the two together would inflate the reassignment rate with
+    corrections that no resolver ever had to absorb.
+    """
+    con = connect()
+    try:
+        row = con.execute("SELECT team FROM tickets WHERE id=?",
+                          (ticket_id,)).fetchone()
+        if row is None:
+            return None
+        con.execute("UPDATE tickets SET team=? WHERE id=?", (team, ticket_id))
+        _event(con, ticket_id, "assigned", actor=actor,
+               from_team=row["team"], to_team=team)
+        con.commit()
+        return dict(con.execute("SELECT * FROM tickets WHERE id=?",
+                                (ticket_id,)).fetchone())
+    finally:
+        con.close()
+
+
+def teams():
+    """Every team seen so far, for populating a referral menu."""
+    con = connect()
+    try:
+        return [r["team"] for r in con.execute(
+            "SELECT DISTINCT team FROM tickets WHERE team IS NOT NULL"
+            " UNION SELECT DISTINCT to_team FROM events"
+            " WHERE to_team IS NOT NULL ORDER BY 1")]
     finally:
         con.close()

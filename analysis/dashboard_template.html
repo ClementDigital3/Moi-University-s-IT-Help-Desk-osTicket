@@ -148,10 +148,17 @@
 <body>
 
 <div class="top">
+  <!-- Written out rather than rendered from window.Nav, because the dashboard
+       is also a standalone file: it is opened directly from results/ as often
+       as it is served, and a nav that needed /static/ui.js would be empty
+       there. tools/check_nav.py fails if this list and the component's ever
+       disagree, which is the only reason the duplication is safe. -->
   <nav class="nav" aria-label="Views">
+    <span class="ngroup">Operate</span>
+    <a href="/submit">Submit a ticket</a>
+    <a href="/tickets">Queue</a>
     <span class="ngroup">Arm A</span>
     <a href="/">End-to-end</a>
-    <span class="ndiv"></span>
     <span class="ngroup">Arm B</span>
     <a href="/classification">B1 Category</a>
     <a href="/routing">B2 Routing</a>

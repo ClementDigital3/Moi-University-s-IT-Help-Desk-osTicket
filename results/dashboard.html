@@ -10,49 +10,61 @@
 
    Colour follows the validated data-visualisation palette, so the charts
    and the interface are drawn from the same ramps rather than two schemes
-   that merely sit near each other. Data hues (series-1/2, the sequential
+   that merely sit near each other. Data hues (series-*, the sequential
    ramp) are reserved for encoding values; interface chrome uses ink and a
-   single accent taken from the same blue ramp, so nothing in the UI can be
-   mistaken for a data series.
+   single accent taken from the same indigo ramp, so nothing in the UI can
+   be mistaken for a data series.
 
-   Both modes are selected, not flipped: the dark steps were chosen against
-   the dark surface.
+   Every value below was checked rather than chosen by eye: the categorical
+   hues pass the lightness band, chroma floor, colour-blind separation and
+   contrast gates in both modes; the sequential ramps pass monotonicity and
+   the 2:1 light-end floor; every ink/surface pair clears WCAG 4.5:1. Both
+   modes are selected, not flipped — the dark steps were stepped against the
+   dark surface, and three of them failed their first draft.
+
+   Navigation lives in a left rail. It was a top bar, which is why the page
+   title disappeared below 1680px and the badge below 1560px: eight links,
+   a heading and two controls cannot share one row. Vertically there is room
+   for all of it, the grouping is legible instead of implied by separators,
+   and the content below gets the full width back.
    ===================================================================== */
 
 :root{
   color-scheme: light;
 
   /* surfaces + ink */
-  --plane:#f9f9f7;          /* page */
-  --surface:#fcfcfb;        /* cards, panels */
-  --surface-2:#f2f2ee;      /* insets, tracks */
-  --ink:#0b0b0b;
-  --ink-2:#52514e;
-  --ink-3:#898781;
-  --line:#e1e0d9;
-  --line-2:#c3c2b7;
-  --border:rgba(11,11,11,.10);
+  --plane:#f6f7fa;          /* page */
+  --surface:#ffffff;        /* cards, panels */
+  --surface-2:#eef0f5;      /* insets, tracks */
+  --ink:#101217;
+  --ink-2:#4a5365;
+  --ink-3:#656e85;
+  --line:#e4e7ef;
+  --line-2:#c8cedd;
+  --border:rgba(16,18,23,.10);
 
-  /* interface accent — the dark end of the same blue ramp the charts use */
-  --accent:#0d366b;
+  /* interface accent — the mid step of the same indigo ramp the charts use */
+  --accent:#3b5bdb;
   --accent-ink:#ffffff;
-  --accent-soft:#eef2f9;
-  --accent-soft-ink:#1c5cab;
+  --accent-soft:#eef0fd;
+  --accent-soft-ink:#3245c9;
 
   /* data encoding — never used for chrome */
-  --series-1:#2a78d6;
-  --series-2:#eb6834;
-  --deemph:#c3c2b7;
-  --seq-100:#cde2fb; --seq-250:#86b6ef; --seq-400:#3987e5;
-  --seq-550:#1c5cab; --seq-700:#0d366b;
+  --series-1:#3b5bdb;
+  --series-2:#e8590c;
+  --series-3:#0ca678;
+  --series-4:#ae3ec9;
+  --deemph:#c8cedd;
+  --seq-100:#a4b2e5; --seq-250:#8096eb; --seq-400:#5f77e4;
+  --seq-550:#3b5bdb; --seq-700:#28379b;
 
   /* status — always paired with an icon or label, never colour alone */
-  --good:#0ca30c;  --good-ink:#006300;  --good-bg:#eaf5f0;  --good-line:#c5e3d5;
-  --warn:#fab219;  --warn-ink:#8a4f21;  --warn-bg:#fff6ee;  --warn-line:#f2d9c2;
-  --bad:#d03b3b;   --bad-ink:#8c2b2b;   --bad-bg:#fdeeee;   --bad-line:#f4cccc;
+  --good:#0ca678;  --good-ink:#0a7a52;  --good-bg:#e9f7f1;  --good-line:#c3e8d8;
+  --warn:#f59f00;  --warn-ink:#8a5520;  --warn-bg:#fdf4e9;  --warn-line:#f3dcc0;
+  --bad:#e03131;   --bad-ink:#a32f2f;   --bad-bg:#fdeded;   --bad-line:#f6cfcf;
 
   /* type — one scale everywhere */
-  --font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
   --t-xs:11px; --t-sm:12.5px; --t-md:13.5px; --t-base:15px;
   --t-lg:17px; --t-xl:20px; --t-2xl:26px; --t-3xl:32px;
@@ -60,44 +72,48 @@
   /* spacing — multiples of 4, so everything lands on one grid */
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:22px; --s6:30px; --s7:44px;
 
-  --r-sm:7px; --r:10px; --r-lg:12px; --r-pill:999px;
-  --shadow:0 1px 2px rgba(11,11,11,.05), 0 4px 14px rgba(11,11,11,.045);
+  --r-sm:8px; --r:11px; --r-lg:14px; --r-pill:999px;
+  --shadow:0 1px 2px rgba(16,18,23,.04), 0 2px 10px rgba(16,18,23,.045);
+  --shadow-rail:1px 0 0 var(--line);
 
-  --measure:1340px;         /* app shell */
+  --rail:228px;             /* the navigation rail */
+  --measure:1600px;         /* app shell */
   --measure-read:1180px;    /* reading pages */
 }
 
 @media (prefers-color-scheme: dark){
   :root:where(:not([data-theme="light"])){
     color-scheme: dark;
-    --plane:#0d0d0d; --surface:#1a1a19; --surface-2:#232321;
-    --ink:#ffffff; --ink-2:#c3c2b7; --ink-3:#898781;
-    --line:#2c2c2a; --line-2:#383835; --border:rgba(255,255,255,.10);
-    --accent:#3987e5; --accent-ink:#0b1626;
-    --accent-soft:#17243a; --accent-soft-ink:#9ec5f4;
-    --series-1:#3987e5; --series-2:#d95926; --deemph:#383835;
-    --seq-100:#0d366b; --seq-250:#184f95; --seq-400:#2a78d6;
-    --seq-550:#5598e7; --seq-700:#9ec5f4;
-    --good-ink:#0ca30c; --good-bg:#15241c; --good-line:#1f4433;
-    --warn-ink:#e0a66a; --warn-bg:#2a1f14; --warn-line:#4a3a28;
-    --bad-ink:#f0a0a0;  --bad-bg:#2a1718;  --bad-line:#4a2a2b;
-    --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3);
+    --plane:#15161c; --surface:#1b1d25; --surface-2:#242733;
+    --ink:#f2f3f7; --ink-2:#a8b0c3; --ink-3:#8b94a8;
+    --line:#2b2e3a; --line-2:#3a3e4d; --border:rgba(255,255,255,.10);
+    --accent:#6b7fe0; --accent-ink:#0f1326;
+    --accent-soft:#232a4d; --accent-soft-ink:#c8d0f8;
+    --series-1:#6b7fe0; --series-2:#dd6c33; --series-3:#19a87c;
+    --series-4:#b566cc; --deemph:#3a3e4d;
+    --seq-100:#354494; --seq-250:#4055b6; --seq-400:#5a70dc;
+    --seq-550:#8ba0ee; --seq-700:#c8d0f8;
+    --good-ink:#4ecfa0; --good-bg:#102a21; --good-line:#1d4536;
+    --warn-ink:#e8b06a; --warn-bg:#2b2113; --warn-line:#4a3a22;
+    --bad-ink:#f0a3a3;  --bad-bg:#2d1719;  --bad-line:#4d2a2c;
+    --shadow:0 1px 2px rgba(0,0,0,.45), 0 2px 12px rgba(0,0,0,.32);
   }
 }
 :root[data-theme="dark"]{
   color-scheme: dark;
-  --plane:#0d0d0d; --surface:#1a1a19; --surface-2:#232321;
-  --ink:#ffffff; --ink-2:#c3c2b7; --ink-3:#898781;
-  --line:#2c2c2a; --line-2:#383835; --border:rgba(255,255,255,.10);
-  --accent:#3987e5; --accent-ink:#0b1626;
-  --accent-soft:#17243a; --accent-soft-ink:#9ec5f4;
-  --series-1:#3987e5; --series-2:#d95926; --deemph:#383835;
-  --seq-100:#0d366b; --seq-250:#184f95; --seq-400:#2a78d6;
-  --seq-550:#5598e7; --seq-700:#9ec5f4;
-  --good-ink:#0ca30c; --good-bg:#15241c; --good-line:#1f4433;
-  --warn-ink:#e0a66a; --warn-bg:#2a1f14; --warn-line:#4a3a28;
-  --bad-ink:#f0a0a0;  --bad-bg:#2a1718;  --bad-line:#4a2a2b;
-  --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3);
+  --plane:#15161c; --surface:#1b1d25; --surface-2:#242733;
+  --ink:#f2f3f7; --ink-2:#a8b0c3; --ink-3:#8b94a8;
+  --line:#2b2e3a; --line-2:#3a3e4d; --border:rgba(255,255,255,.10);
+  --accent:#6b7fe0; --accent-ink:#0f1326;
+  --accent-soft:#232a4d; --accent-soft-ink:#c8d0f8;
+  --series-1:#6b7fe0; --series-2:#dd6c33; --series-3:#19a87c;
+  --series-4:#b566cc; --deemph:#3a3e4d;
+  --seq-100:#354494; --seq-250:#4055b6; --seq-400:#5a70dc;
+  --seq-550:#8ba0ee; --seq-700:#c8d0f8;
+  --good-ink:#4ecfa0; --good-bg:#102a21; --good-line:#1d4536;
+  --warn-ink:#e8b06a; --warn-bg:#2b2113; --warn-line:#4a3a22;
+  --bad-ink:#f0a3a3;  --bad-bg:#2d1719;  --bad-line:#4d2a2c;
+  --shadow:0 1px 2px rgba(0,0,0,.45), 0 2px 12px rgba(0,0,0,.32);
 }
 
 *{box-sizing:border-box}
@@ -105,45 +121,76 @@ html,body{height:100%}
 body{margin:0;background:var(--plane);color:var(--ink);
   font:var(--t-base)/1.5 var(--font);-webkit-font-smoothing:antialiased}
 
-/* ---- app shell: header band, two panes that scroll on their own ---- */
-.app{display:flex;flex-direction:column;height:100%;
-  max-width:var(--measure);margin:0 auto;padding:var(--s3) var(--s4) var(--s2)}
-.cols{flex:1;display:grid;grid-template-columns:352px minmax(0,1fr);
-  gap:var(--s4);min-height:0}
-.pane{min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:2px;
+/* ---------------------------------------------------------------------
+   App shell: a fixed navigation rail, and content that scrolls beside it.
+
+   The rail does not scroll with the page, so every view stays one click
+   away however far down a long table you are -- which a top bar that
+   scrolled away could not offer.
+   --------------------------------------------------------------------- */
+.app{display:grid;grid-template-columns:var(--rail) minmax(0,1fr);
+  height:100%;max-width:var(--measure);margin:0 auto}
+
+/* .bar is the rail. The markup order is nav, heading, theme, badge; the
+   rail wants heading, nav, then the controls pinned to the bottom, so the
+   order is set here rather than by rewriting every page's header. */
+.bar{grid-column:1;display:flex;flex-direction:column;gap:var(--s3);
+  padding:var(--s4) var(--s3) var(--s3);min-height:0;overflow-y:auto;
+  background:var(--surface);box-shadow:var(--shadow-rail);
   scrollbar-width:thin;scrollbar-color:var(--line) transparent}
-.pane::-webkit-scrollbar{width:9px}
-.pane::-webkit-scrollbar-thumb{background:var(--line);border-radius:var(--r-pill)}
-.pane::-webkit-scrollbar-track{background:transparent}
-@media (max-width:980px),(max-height:600px){
-  html,body{height:auto}
-  .app{height:auto;padding-bottom:var(--s6)}
-  .cols{grid-template-columns:1fr}
-  .pane{overflow:visible;min-height:auto}
-}
+.brand{order:1;display:flex;flex-direction:column;gap:2px;padding:0 var(--s2) var(--s1)}
+.nav{order:2}
+#themebtn{order:3;margin-top:auto;align-self:flex-start}
+.badge{order:4}
 
-/* ---- header ---- */
-.bar{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s3)}
-.brand{display:flex;align-items:baseline;gap:var(--s2);min-width:0;flex:1 1 auto}
-h1{margin:0;font-size:var(--t-xl);letter-spacing:-.022em;white-space:nowrap;font-weight:680}
-.sub{color:var(--ink-2);font-size:var(--t-sm);min-width:0;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+h1{margin:0;font-size:var(--t-lg);letter-spacing:-.021em;font-weight:680;
+  line-height:1.25}
+.sub{color:var(--ink-3);font-size:var(--t-sm);line-height:1.45}
 .badge{background:var(--warn-bg);color:var(--warn-ink);border:1px solid var(--warn-line);
-  border-radius:var(--r-pill);padding:3px 11px;font-size:var(--t-sm);
-  font-weight:650;flex:none;white-space:nowrap}
-@media (max-width:1680px){.sub{display:none}}
-@media (max-width:1560px){.badge{display:none}}
+  border-radius:var(--r-sm);padding:7px 10px;font-size:var(--t-xs);
+  font-weight:620;line-height:1.4}
 
-/* ---- navigation, grouped by arm ---- */
-.nav{display:inline-flex;flex-wrap:wrap;gap:2px;background:var(--surface);
-  border:1px solid var(--border);border-radius:var(--r);padding:3px;flex:none}
-.nav a{font-size:var(--t-sm);font-weight:620;text-decoration:none;color:var(--ink-2);
-  padding:5px 10px;border-radius:var(--r-sm);white-space:nowrap;line-height:1.3}
-.nav a:hover{background:var(--accent-soft);color:var(--accent-soft-ink)}
-.nav a[aria-current="page"]{background:var(--accent);color:var(--accent-ink)}
-.ngroup{font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;
-  font-weight:750;color:var(--ink-3);padding:0 6px 0 7px;align-self:center}
-.ndiv{width:1px;align-self:stretch;background:var(--line);margin:3px 5px}
+/* ---- navigation: vertical, grouped by what it is for ---- */
+.nav{display:flex;flex-direction:column;gap:1px}
+.nav a{display:block;font-size:var(--t-md);font-weight:600;text-decoration:none;
+  color:var(--ink-2);padding:7px 10px;border-radius:var(--r-sm);line-height:1.35}
+.nav a:hover{background:var(--surface-2);color:var(--ink)}
+.nav a[aria-current="page"]{background:var(--accent);color:var(--accent-ink);
+  font-weight:650}
+.ngroup{font-size:10.5px;text-transform:uppercase;letter-spacing:.095em;
+  font-weight:750;color:var(--ink-3);padding:var(--s3) 10px var(--s1)}
+.ndiv{height:1px;background:var(--line);margin:var(--s2) 10px var(--s1)}
+
+/* ---- the content column ---- */
+.app > main{grid-column:2;min-height:0;overflow-y:auto;
+  padding:var(--s4) var(--s5) var(--s6);
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.cols{display:grid;grid-template-columns:372px minmax(0,1fr);
+  gap:var(--s4);align-items:start}
+.pane{min-width:0}
+.bar::-webkit-scrollbar,.app > main::-webkit-scrollbar{width:9px}
+.bar::-webkit-scrollbar-thumb,.app > main::-webkit-scrollbar-thumb{
+  background:var(--line);border-radius:var(--r-pill)}
+.bar::-webkit-scrollbar-track,.app > main::-webkit-scrollbar-track{background:transparent}
+
+/* Below the breakpoint the rail becomes a header again: a 228px column
+   would leave nothing for the content on a phone. */
+@media (max-width:900px){
+  html,body{height:auto}
+  .app{display:block;height:auto}
+  .bar{flex-direction:row;flex-wrap:wrap;align-items:center;gap:var(--s2);
+    overflow:visible;padding:var(--s3) var(--s4);
+    box-shadow:0 1px 0 var(--line);position:sticky;top:0;z-index:20}
+  .brand{order:0;flex:1 1 100%;padding:0}
+  .nav{order:1;flex-direction:row;flex-wrap:wrap;gap:2px;flex:1 1 100%}
+  .nav a{font-size:var(--t-sm);padding:5px 9px}
+  .ngroup{padding:0 6px;align-self:center}
+  .ndiv{width:1px;height:16px;margin:0 4px}
+  #themebtn{order:2;margin-top:0}
+  .badge{order:3}
+  .app > main{padding:var(--s4);overflow:visible}
+  .cols{grid-template-columns:1fr}
+}
 
 /* ---- surfaces ---- */
 .card{background:var(--surface);border:1px solid var(--border);
@@ -321,34 +368,86 @@ select.override{font:inherit;font-size:var(--t-sm);padding:5px 9px;
 
 
   /* ---- top bar ---- */
-  .top{position:sticky;top:0;z-index:40;background:var(--plane);
-    border-bottom:1px solid var(--border);padding:9px 18px;
-    display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-  .nav{display:inline-flex;flex-wrap:wrap;gap:2px;background:var(--surface);
-    border:1px solid var(--border);border-radius:9px;padding:3px}
-  .nav a{font-size:12.5px;font-weight:600;text-decoration:none;color:var(--ink-2);
-    padding:5px 10px;border-radius:7px;white-space:nowrap}
-  .ngroup{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;
-    font-weight:750;color:var(--ink-3);padding:0 6px 0 7px;align-self:center}
-  .ndiv{width:1px;align-self:stretch;background:var(--border);margin:3px 5px}
-  .nav a:hover{background:var(--plane)}
-  .nav a[aria-current="page"]{background:var(--ink);color:var(--surface)}
-  .spacer{flex:1}
+  /* The same left rail as every other page, so navigation does not change
+     shape when a reader crosses from the prototype into the evidence. The
+     rail is fixed: a reader eleven sections down a long document should not
+     have to scroll back up to move. */
+  .top{position:fixed;left:0;top:0;bottom:0;width:var(--rail);z-index:40;
+    background:var(--surface);box-shadow:1px 0 0 var(--line);
+    padding:var(--s4) var(--s3) var(--s3);overflow-y:auto;
+    display:flex;flex-direction:column;gap:var(--s3);
+    scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .top::-webkit-scrollbar{width:9px}
+  .top::-webkit-scrollbar-thumb{background:var(--line);border-radius:999px}
+  .dash-brand{padding:0 var(--s2);margin-bottom:var(--s1)}
+  .dash-brand b{display:block;font-size:var(--t-lg);font-weight:680;
+    letter-spacing:-.021em;line-height:1.25}
+  .dash-brand span{display:block;font-size:var(--t-sm);color:var(--ink-3);
+    line-height:1.45;margin-top:2px}
+  .nav{display:flex;flex-direction:column;gap:1px}
+  .nav a{display:block;font-size:var(--t-md);font-weight:600;text-decoration:none;
+    color:var(--ink-2);padding:7px 10px;border-radius:var(--r-sm);line-height:1.35}
+  .ngroup{font-size:10.5px;text-transform:uppercase;letter-spacing:.095em;
+    font-weight:750;color:var(--ink-3);padding:var(--s3) 10px var(--s1)}
+  .ndiv{height:1px;background:var(--line);margin:var(--s2) 10px var(--s1)}
+  .nav a:hover{background:var(--surface-2);color:var(--ink)}
+  .nav a[aria-current="page"]{background:var(--accent);color:var(--accent-ink);
+    font-weight:650}
+  .spacer{flex:1 0 var(--s2)}
+  /* The inlined ui.css gives .nav and #themebtn an order for the app shell's
+     rail. .top is a flex container too, so those values apply here and put
+     the section list and the Present button above the navigation. Every
+     child is ordered explicitly rather than relying on which rule wins. */
+  .dash-brand{order:0}
+  .top .nav{order:1}
+  .top > .ngroup{order:2}
+  .rail{order:3}
+  .spacer{order:4}
+  #presentbtn{order:5}
+  #themebtn{order:6;margin-top:0}
+  .tbtn{align-self:flex-start}
   .btn-ghost{font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;background:var(--surface);
     color:var(--ink-2);border:1px solid var(--border);border-radius:8px;padding:6px 12px}
   .btn-ghost:hover{color:var(--ink)}
   .btn-ghost.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 
   /* ---- step rail ---- */
-  .rail{position:fixed;left:14px;top:50%;transform:translateY(-50%);z-index:35;
-    display:flex;flex-direction:column;gap:9px}
-  .rail button{width:10px;height:10px;padding:0;border-radius:50%;cursor:pointer;
-    background:var(--line);border:none;transition:all .15s}
-  .rail button:hover{background:var(--line-2)}
-  .rail button[aria-current="true"]{background:var(--ink);height:22px;border-radius:6px}
-  @media (max-width:1100px){.rail{display:none}}
+  /* Sections, named. They were ten identical dots with the name hidden in a
+     tooltip, so finding one meant hovering along the row and reading them
+     out one at a time. */
+  .rail{display:flex;flex-direction:column;gap:1px}
+  .rail button{display:block;width:100%;text-align:left;font:inherit;
+    font-size:var(--t-sm);font-weight:600;color:var(--ink-3);cursor:pointer;
+    background:none;border:none;border-left:2px solid var(--line);
+    padding:5px 10px;line-height:1.35;border-radius:0 var(--r-sm) var(--r-sm) 0}
+  .rail button:hover{color:var(--ink);background:var(--surface-2)}
+  .rail button[aria-current="true"]{color:var(--accent-soft-ink);
+    border-left-color:var(--accent);background:var(--accent-soft);font-weight:680}
 
-  .wrap{max-width:1180px;margin:0 auto;padding:0 18px 70px}
+  .wrap{margin-left:var(--rail);max-width:1180px;padding:var(--s5) var(--s5) 70px}
+  @media (min-width:1700px){.wrap{margin-left:calc(var(--rail) + 4vw)}}
+
+  /* Presenting: the rail is navigation for a reader, not for an audience.
+     It comes back on Escape with present mode itself. */
+  body.present .top{transform:translateX(-100%);transition:transform .2s}
+  body.present .wrap{margin-left:0;max-width:none;padding-left:5vw;padding-right:5vw}
+
+  /* A 228px fixed rail leaves a phone nothing, so below this it returns to a
+     bar across the top and the section list folds away -- the page nav still
+     reaches every view, which is what matters on a small screen. */
+  @media (max-width:900px){
+    .top{position:sticky;left:auto;top:0;bottom:auto;width:auto;
+      flex-direction:row;flex-wrap:wrap;align-items:center;gap:var(--s2);
+      padding:var(--s3) var(--s4);box-shadow:0 1px 0 var(--line);overflow:visible}
+    .dash-brand{flex:1 1 100%;padding:0}
+    .nav{flex-direction:row;flex-wrap:wrap;gap:2px;flex:1 1 100%}
+    .nav a{font-size:var(--t-sm);padding:5px 9px}
+    .ngroup{display:none}
+    .ndiv{width:1px;height:16px;margin:0 4px}
+    .rail{display:none}
+    .spacer{display:none}
+    .wrap{margin-left:0;padding:var(--s4) var(--s4) 60px}
+  }
 
   /* ---- a section is a slide ---- */
   section{padding:46px 0 10px;scroll-margin-top:60px}
@@ -461,6 +560,10 @@ select.override{font:inherit;font-size:var(--t-sm);padding:5px 9px;
 <body>
 
 <div class="top">
+  <div class="dash-brand">
+    <b>Findings</b>
+    <span>Chapter Four, as evidence you can click through.</span>
+  </div>
   <!-- Written out rather than rendered from window.Nav, because the dashboard
        is also a standalone file: it is opened directly from results/ as often
        as it is served, and a nav that needed /static/ui.js would be empty
@@ -480,12 +583,12 @@ select.override{font:inherit;font-size:var(--t-sm);padding:5px 9px;
     <span class="ndiv"></span>
     <a href="/dashboard" aria-current="page">Findings</a>
   </nav>
+  <div class="ngroup">On this page</div>
+  <div class="rail" id="rail"></div>
   <span class="spacer"></span>
   <button class="tbtn" id="presentbtn" type="button">Present</button>
   <button class="tbtn" id="themebtn" type="button">Dark</button>
 </div>
-
-<div class="rail" id="rail"></div>
 
 <div class="wrap">
   <section id="s-verdict"></section>
@@ -1130,7 +1233,7 @@ const visible = () => SECTIONS.filter(([id]) => {
 function buildRail(){
   const vs = visible();
   $("#rail").innerHTML = vs.map(([id, label], i) =>
-    `<button type="button" data-i="${i}" title="${esc(label)}" aria-label="${esc(label)}"></button>`).join("");
+    `<button type="button" data-i="${i}" title="${esc(label)}">${esc(label)}</button>`).join("");
   $("#rail").addEventListener("click", e => {
     const b = e.target.closest("button"); if (b) go(+b.dataset.i);
   });

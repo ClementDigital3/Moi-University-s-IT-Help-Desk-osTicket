@@ -8,34 +8,86 @@
   /*__UI_CSS__*/
 
   /* ---- top bar ---- */
-  .top{position:sticky;top:0;z-index:40;background:var(--plane);
-    border-bottom:1px solid var(--border);padding:9px 18px;
-    display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-  .nav{display:inline-flex;flex-wrap:wrap;gap:2px;background:var(--surface);
-    border:1px solid var(--border);border-radius:9px;padding:3px}
-  .nav a{font-size:12.5px;font-weight:600;text-decoration:none;color:var(--ink-2);
-    padding:5px 10px;border-radius:7px;white-space:nowrap}
-  .ngroup{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;
-    font-weight:750;color:var(--ink-3);padding:0 6px 0 7px;align-self:center}
-  .ndiv{width:1px;align-self:stretch;background:var(--border);margin:3px 5px}
-  .nav a:hover{background:var(--plane)}
-  .nav a[aria-current="page"]{background:var(--ink);color:var(--surface)}
-  .spacer{flex:1}
+  /* The same left rail as every other page, so navigation does not change
+     shape when a reader crosses from the prototype into the evidence. The
+     rail is fixed: a reader eleven sections down a long document should not
+     have to scroll back up to move. */
+  .top{position:fixed;left:0;top:0;bottom:0;width:var(--rail);z-index:40;
+    background:var(--surface);box-shadow:1px 0 0 var(--line);
+    padding:var(--s4) var(--s3) var(--s3);overflow-y:auto;
+    display:flex;flex-direction:column;gap:var(--s3);
+    scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .top::-webkit-scrollbar{width:9px}
+  .top::-webkit-scrollbar-thumb{background:var(--line);border-radius:999px}
+  .dash-brand{padding:0 var(--s2);margin-bottom:var(--s1)}
+  .dash-brand b{display:block;font-size:var(--t-lg);font-weight:680;
+    letter-spacing:-.021em;line-height:1.25}
+  .dash-brand span{display:block;font-size:var(--t-sm);color:var(--ink-3);
+    line-height:1.45;margin-top:2px}
+  .nav{display:flex;flex-direction:column;gap:1px}
+  .nav a{display:block;font-size:var(--t-md);font-weight:600;text-decoration:none;
+    color:var(--ink-2);padding:7px 10px;border-radius:var(--r-sm);line-height:1.35}
+  .ngroup{font-size:10.5px;text-transform:uppercase;letter-spacing:.095em;
+    font-weight:750;color:var(--ink-3);padding:var(--s3) 10px var(--s1)}
+  .ndiv{height:1px;background:var(--line);margin:var(--s2) 10px var(--s1)}
+  .nav a:hover{background:var(--surface-2);color:var(--ink)}
+  .nav a[aria-current="page"]{background:var(--accent);color:var(--accent-ink);
+    font-weight:650}
+  .spacer{flex:1 0 var(--s2)}
+  /* The inlined ui.css gives .nav and #themebtn an order for the app shell's
+     rail. .top is a flex container too, so those values apply here and put
+     the section list and the Present button above the navigation. Every
+     child is ordered explicitly rather than relying on which rule wins. */
+  .dash-brand{order:0}
+  .top .nav{order:1}
+  .top > .ngroup{order:2}
+  .rail{order:3}
+  .spacer{order:4}
+  #presentbtn{order:5}
+  #themebtn{order:6;margin-top:0}
+  .tbtn{align-self:flex-start}
   .btn-ghost{font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;background:var(--surface);
     color:var(--ink-2);border:1px solid var(--border);border-radius:8px;padding:6px 12px}
   .btn-ghost:hover{color:var(--ink)}
   .btn-ghost.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 
   /* ---- step rail ---- */
-  .rail{position:fixed;left:14px;top:50%;transform:translateY(-50%);z-index:35;
-    display:flex;flex-direction:column;gap:9px}
-  .rail button{width:10px;height:10px;padding:0;border-radius:50%;cursor:pointer;
-    background:var(--line);border:none;transition:all .15s}
-  .rail button:hover{background:var(--line-2)}
-  .rail button[aria-current="true"]{background:var(--ink);height:22px;border-radius:6px}
-  @media (max-width:1100px){.rail{display:none}}
+  /* Sections, named. They were ten identical dots with the name hidden in a
+     tooltip, so finding one meant hovering along the row and reading them
+     out one at a time. */
+  .rail{display:flex;flex-direction:column;gap:1px}
+  .rail button{display:block;width:100%;text-align:left;font:inherit;
+    font-size:var(--t-sm);font-weight:600;color:var(--ink-3);cursor:pointer;
+    background:none;border:none;border-left:2px solid var(--line);
+    padding:5px 10px;line-height:1.35;border-radius:0 var(--r-sm) var(--r-sm) 0}
+  .rail button:hover{color:var(--ink);background:var(--surface-2)}
+  .rail button[aria-current="true"]{color:var(--accent-soft-ink);
+    border-left-color:var(--accent);background:var(--accent-soft);font-weight:680}
 
-  .wrap{max-width:1180px;margin:0 auto;padding:0 18px 70px}
+  .wrap{margin-left:var(--rail);max-width:1180px;padding:var(--s5) var(--s5) 70px}
+  @media (min-width:1700px){.wrap{margin-left:calc(var(--rail) + 4vw)}}
+
+  /* Presenting: the rail is navigation for a reader, not for an audience.
+     It comes back on Escape with present mode itself. */
+  body.present .top{transform:translateX(-100%);transition:transform .2s}
+  body.present .wrap{margin-left:0;max-width:none;padding-left:5vw;padding-right:5vw}
+
+  /* A 228px fixed rail leaves a phone nothing, so below this it returns to a
+     bar across the top and the section list folds away -- the page nav still
+     reaches every view, which is what matters on a small screen. */
+  @media (max-width:900px){
+    .top{position:sticky;left:auto;top:0;bottom:auto;width:auto;
+      flex-direction:row;flex-wrap:wrap;align-items:center;gap:var(--s2);
+      padding:var(--s3) var(--s4);box-shadow:0 1px 0 var(--line);overflow:visible}
+    .dash-brand{flex:1 1 100%;padding:0}
+    .nav{flex-direction:row;flex-wrap:wrap;gap:2px;flex:1 1 100%}
+    .nav a{font-size:var(--t-sm);padding:5px 9px}
+    .ngroup{display:none}
+    .ndiv{width:1px;height:16px;margin:0 4px}
+    .rail{display:none}
+    .spacer{display:none}
+    .wrap{margin-left:0;padding:var(--s4) var(--s4) 60px}
+  }
 
   /* ---- a section is a slide ---- */
   section{padding:46px 0 10px;scroll-margin-top:60px}
@@ -148,6 +200,10 @@
 <body>
 
 <div class="top">
+  <div class="dash-brand">
+    <b>Findings</b>
+    <span>Chapter Four, as evidence you can click through.</span>
+  </div>
   <!-- Written out rather than rendered from window.Nav, because the dashboard
        is also a standalone file: it is opened directly from results/ as often
        as it is served, and a nav that needed /static/ui.js would be empty
@@ -167,12 +223,12 @@
     <span class="ndiv"></span>
     <a href="/dashboard" aria-current="page">Findings</a>
   </nav>
+  <div class="ngroup">On this page</div>
+  <div class="rail" id="rail"></div>
   <span class="spacer"></span>
   <button class="tbtn" id="presentbtn" type="button">Present</button>
   <button class="tbtn" id="themebtn" type="button">Dark</button>
 </div>
-
-<div class="rail" id="rail"></div>
 
 <div class="wrap">
   <section id="s-verdict"></section>
@@ -817,7 +873,7 @@ const visible = () => SECTIONS.filter(([id]) => {
 function buildRail(){
   const vs = visible();
   $("#rail").innerHTML = vs.map(([id, label], i) =>
-    `<button type="button" data-i="${i}" title="${esc(label)}" aria-label="${esc(label)}"></button>`).join("");
+    `<button type="button" data-i="${i}" title="${esc(label)}">${esc(label)}</button>`).join("");
   $("#rail").addEventListener("click", e => {
     const b = e.target.closest("button"); if (b) go(+b.dataset.i);
   });
